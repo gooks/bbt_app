@@ -63,7 +63,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 위젯 설정 화면: exported="true" 및 CONFIGURE 액션 필수 -->
         <!-- 위젯 설정 화면 -->
         <activity
             android:name="com.czt.bbt.widget.BusAlertWidgetConfigActivity"
@@ -73,18 +72,11 @@
             </intent-filter>
         </activity>
 
-        <!-- 삼성 루틴 설정 화면: 루틴 앱의 '동작' 리스트에 앱이 뜨게 함 -->
+        <!-- 루틴/숏컷 실행을 위한 투명 중계 액티비티 -->
         <activity
-            android:name="com.czt.bbt.receiver.BusAlertRoutineConfigActivity"
+            android:name="com.czt.bbt.receiver.BusAlertRoutineExecutionActivity"
             android:exported="true"
-            android:label="알림 시작하기" >
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <action android:name="com.samsung.android.app.routines.CREATE_ROUTINE_ACTION" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <service
             android:name="com.czt.bbt.service.BusAlertService"
@@ -117,6 +109,19 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name="androidx.core.google.shortcuts.TrampolineActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" >
+            <intent-filter>
+                <action android:name="androidx.core.content.pm.SHORTCUT_LISTENER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="androidx.core.content.pm.shortcut_listener_impl"
+                android:value="androidx.core.google.shortcuts.ShortcutInfoChangeListenerImpl" />
+        </activity>
         <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"
             android:exported="true" />

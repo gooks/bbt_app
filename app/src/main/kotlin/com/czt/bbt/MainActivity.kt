@@ -49,6 +49,16 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val viewModel: BusViewModel = hiltViewModel()
+                    
+                    // 알림 목록 관찰 및 숏컷 갱신
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        kotlinx.coroutines.flow.combine(viewModel.rideAlerts, viewModel.arrivalAlerts) { ride, arrival ->
+                            Pair(ride, arrival)
+                        }.collect { (ride, arrival) ->
+                            com.czt.bbt.util.ShortcutUtil.updateShortcuts(this@MainActivity, ride, arrival)
+                        }
+                    }
+
                     BusAppScreen(
                         viewModel = viewModel, 
                         tts = tts, 

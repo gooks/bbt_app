@@ -1,7 +1,10 @@
 package com.czt.bbt;
 
 import com.czt.bbt.di.AppModule;
+import com.czt.bbt.receiver.BusAlertArrivalRoutineConfigActivity_GeneratedInjector;
+import com.czt.bbt.receiver.BusAlertRideRoutineConfigActivity_GeneratedInjector;
 import com.czt.bbt.receiver.BusAlertRoutineConfigActivity_GeneratedInjector;
+import com.czt.bbt.receiver.BusAlertRoutineExecutionActivity_GeneratedInjector;
 import com.czt.bbt.service.BusAlertService_GeneratedInjector;
 import com.czt.bbt.ui.BusViewModel_HiltModules;
 import com.czt.bbt.widget.BusAlertWidgetConfigActivity_GeneratedInjector;
@@ -184,7 +187,10 @@ public final class BusApp_HiltComponents {
   )
   @ActivityScoped
   public abstract static class ActivityC implements MainActivity_GeneratedInjector,
+      BusAlertArrivalRoutineConfigActivity_GeneratedInjector,
+      BusAlertRideRoutineConfigActivity_GeneratedInjector,
       BusAlertRoutineConfigActivity_GeneratedInjector,
+      BusAlertRoutineExecutionActivity_GeneratedInjector,
       BusAlertWidgetConfigActivity_GeneratedInjector,
       ActivityComponent,
       DefaultViewModelFactories.ActivityEntryPoint,

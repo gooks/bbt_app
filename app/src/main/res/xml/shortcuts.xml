@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_ride_start"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_ride_short"
+        android:shortcutLongLabel="@string/shortcut_ride_long">
+        <intent
+            android:action="android.intent.action.CREATE_SHORTCUT"
+            android:targetPackage="com.czt.bbt"
+            android:targetClass="com.czt.bbt.receiver.BusAlertRideRoutineConfigActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    
+    <shortcut
+        android:shortcutId="shortcut_arrival_start"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_arrival_short"
+        android:shortcutLongLabel="@string/shortcut_arrival_long">
+        <intent
+            android:action="android.intent.action.CREATE_SHORTCUT"
+            android:targetPackage="com.czt.bbt"
+            android:targetClass="com.czt.bbt.receiver.BusAlertArrivalRoutineConfigActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

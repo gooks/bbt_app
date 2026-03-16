@@ -19,5 +19,10 @@ mipmap ic_launcher
 mipmap ic_launcher_foreground
 mipmap ic_launcher_round
 string app_name
+string shortcut_arrival_long
+string shortcut_arrival_short
+string shortcut_ride_long
+string shortcut_ride_short
 style Theme.BusApp
+xml shortcuts
 xml widget_info

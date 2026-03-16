@@ -1,9 +1,11 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-87:12
-INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-87:12
-INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-87:12
-INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-87:12
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-80:12
+INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-80:12
+INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-80:12
+INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:2:1-80:12
+MERGED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:17:1-42:12
+MERGED from [com.google.firebase:firebase-appindexing:20.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\8e503dec3129a6e639c7e8dc9f22706f\transformed\jetified-firebase-appindexing-20.0.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.hilt:hilt-navigation-compose:1.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\ab46573f3c7a45f85a4aaa35e9181ff9\transformed\jetified-hilt-navigation-compose-1.1.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.hilt:hilt-navigation:1.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\9a5f78080ea8bd0887f0391362b30bb5\transformed\jetified-hilt-navigation-1.1.0\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.dagger:hilt-android:2.51.1] C:\Users\이경국\.gradle\caches\8.13\transforms\2ba06f0a0d45702fb8323275fb798724\transformed\jetified-hilt-android-2.51.1\AndroidManifest.xml:16:1-19:12
@@ -137,8 +139,12 @@ ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:13:5-66
 	android:name
 		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:13:22-63
 application
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:15:5-85:19
-INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:15:5-85:19
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:15:5-78:19
+INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:15:5-78:19
+MERGED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:26:5-40:19
+MERGED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:26:5-40:19
+MERGED from [com.google.firebase:firebase-appindexing:20.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\8e503dec3129a6e639c7e8dc9f22706f\transformed\jetified-firebase-appindexing-20.0.0\AndroidManifest.xml:22:5-20
+MERGED from [com.google.firebase:firebase-appindexing:20.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\8e503dec3129a6e639c7e8dc9f22706f\transformed\jetified-firebase-appindexing-20.0.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-test-manifest:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\fabf23bc6b4f3f0e94747b77381307cc\transformed\jetified-ui-test-manifest-1.5.0\AndroidManifest.xml:22:5-26:19
@@ -210,95 +216,85 @@ ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:31:17-77
 	android:name
 		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:31:27-74
 activity#com.czt.bbt.widget.BusAlertWidgetConfigActivity
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:37:9-42:20
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:36:9-41:20
 	android:exported
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:38:13-36
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:37:13-36
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:37:19-70
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:36:19-70
 intent-filter#action:name:android.appwidget.action.APPWIDGET_CONFIGURE
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:39:13-41:29
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:38:13-40:29
 action#android.appwidget.action.APPWIDGET_CONFIGURE
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:40:17-87
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:39:17-87
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:40:25-84
-activity#com.czt.bbt.receiver.BusAlertRoutineConfigActivity
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:45:9-53:20
-	android:label
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:39:25-84
+activity#com.czt.bbt.receiver.BusAlertRoutineExecutionActivity
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:44:9-46:39
+	android:exported
 		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:46:13-36
-	android:exported
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:47:13-36
+	android:theme
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:45:13-72
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:45:19-73
-intent-filter#action:name:android.intent.action.CREATE_SHORTCUT+action:name:com.samsung.android.app.routines.CREATE_ROUTINE_ACTION+category:name:android.intent.category.DEFAULT
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:48:13-52:29
-action#android.intent.action.CREATE_SHORTCUT
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:49:17-80
-	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:49:25-77
-action#com.samsung.android.app.routines.CREATE_ROUTINE_ACTION
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:50:17-97
-	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:50:25-94
-category#android.intent.category.DEFAULT
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:51:17-76
-	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:51:27-73
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:44:19-76
 service#com.czt.bbt.service.BusAlertService
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:55:9-59:56
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:48:9-52:56
 	android:enabled
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:57:13-35
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:50:13-35
 	android:exported
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:58:13-37
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:51:13-37
 	android:foregroundServiceType
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:59:13-53
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:52:13-53
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:56:13-52
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:49:13-52
 receiver#com.czt.bbt.widget.BusAlertWidget
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:62:9-72:20
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:55:9-65:20
 	android:exported
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:64:13-37
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:57:13-37
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:63:13-50
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:56:13-50
 intent-filter#action:name:android.appwidget.action.APPWIDGET_UPDATE+action:name:com.czt.bbt.ACTION_WIDGET_REFRESH
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:65:13-68:29
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:58:13-61:29
 action#android.appwidget.action.APPWIDGET_UPDATE
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:66:17-84
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:59:17-84
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:66:25-81
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:59:25-81
 action#com.czt.bbt.ACTION_WIDGET_REFRESH
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:67:17-76
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:60:17-76
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:67:25-73
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:60:25-73
 meta-data#android.appwidget.provider
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:69:13-71:55
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:62:13-64:55
 	android:resource
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:71:17-52
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:64:17-52
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:70:17-58
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:63:17-58
 receiver#com.czt.bbt.receiver.BusAlertReceiver
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:75:9-83:20
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:68:9-76:20
 	android:exported
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:77:13-36
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:70:13-36
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:76:13-54
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:69:13-54
 intent-filter#action:name:com.czt.bbt.START_ARRIVAL+action:name:com.czt.bbt.START_RIDE+action:name:com.czt.bbt.STOP_ALERT
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:78:13-82:29
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:71:13-75:29
 action#com.czt.bbt.START_RIDE
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:79:17-65
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:72:17-65
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:79:25-62
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:72:25-62
 action#com.czt.bbt.START_ARRIVAL
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:80:17-68
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:73:17-68
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:80:25-65
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:73:25-65
 action#com.czt.bbt.STOP_ALERT
-ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:81:17-65
+ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:74:17-65
 	android:name
-		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:81:25-62
+		ADDED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:74:25-62
 uses-sdk
 INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml
 INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml
+MERGED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:21:5-24:61
+MERGED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:21:5-24:61
+MERGED from [com.google.firebase:firebase-appindexing:20.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\8e503dec3129a6e639c7e8dc9f22706f\transformed\jetified-firebase-appindexing-20.0.0\AndroidManifest.xml:20:5-44
+MERGED from [com.google.firebase:firebase-appindexing:20.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\8e503dec3129a6e639c7e8dc9f22706f\transformed\jetified-firebase-appindexing-20.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.hilt:hilt-navigation-compose:1.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\ab46573f3c7a45f85a4aaa35e9181ff9\transformed\jetified-hilt-navigation-compose-1.1.0\AndroidManifest.xml:5:5-44
 MERGED from [androidx.hilt:hilt-navigation-compose:1.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\ab46573f3c7a45f85a4aaa35e9181ff9\transformed\jetified-hilt-navigation-compose-1.1.0\AndroidManifest.xml:5:5-44
 MERGED from [androidx.hilt:hilt-navigation:1.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\9a5f78080ea8bd0887f0391362b30bb5\transformed\jetified-hilt-navigation-1.1.0\AndroidManifest.xml:5:5-44
@@ -467,10 +463,34 @@ MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] C:\Users\이경국\.gra
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] C:\Users\이경국\.gradle\caches\8.13\transforms\1988e453c1a76e752a5c4eb31302fe26\transformed\cursoradapter-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [com.google.dagger:dagger-lint-aar:2.51.1] C:\Users\이경국\.gradle\caches\8.13\transforms\061cd3aa76b697edc9eb8c1ee8dd8810\transformed\jetified-dagger-lint-aar-2.51.1\AndroidManifest.xml:18:3-42
 MERGED from [com.google.dagger:dagger-lint-aar:2.51.1] C:\Users\이경국\.gradle\caches\8.13\transforms\061cd3aa76b697edc9eb8c1ee8dd8810\transformed\jetified-dagger-lint-aar-2.51.1\AndroidManifest.xml:18:3-42
+	tools:overrideLibrary
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:24:9-58
 	android:targetSdkVersion
 		INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml
 	android:minSdkVersion
 		INJECTED from C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml
+activity#androidx.core.google.shortcuts.TrampolineActivity
+ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:27:9-39:20
+	android:noHistory
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:30:13-37
+	android:exported
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:29:13-36
+	android:theme
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:31:13-59
+	android:name
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:28:13-77
+intent-filter#action:name:androidx.core.content.pm.SHORTCUT_LISTENER
+ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:32:13-34:29
+action#androidx.core.content.pm.SHORTCUT_LISTENER
+ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:33:17-85
+	android:name
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:33:25-82
+meta-data#androidx.core.content.pm.shortcut_listener_impl
+ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:36:13-38:97
+	android:value
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:38:17-94
+	android:name
+		ADDED from [androidx.core:core-google-shortcuts:1.0.1] C:\Users\이경국\.gradle\caches\8.13\transforms\5607e0ebc4c0e19ad130eb129bb90c87\transformed\jetified-core-google-shortcuts-1.0.1\AndroidManifest.xml:37:17-79
 activity#androidx.compose.ui.tooling.PreviewActivity
 ADDED from [androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:23:9-25:39
 	android:exported

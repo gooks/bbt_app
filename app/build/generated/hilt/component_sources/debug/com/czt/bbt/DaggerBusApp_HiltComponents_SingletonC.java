@@ -17,8 +17,11 @@ import com.czt.bbt.di.AppModule_ProvideFusedLocationProviderClientFactory;
 import com.czt.bbt.di.AppModule_ProvideLoggingInterceptorFactory;
 import com.czt.bbt.di.AppModule_ProvideOkHttpClientFactory;
 import com.czt.bbt.di.AppModule_ProvideRetrofitFactory;
+import com.czt.bbt.receiver.BusAlertArrivalRoutineConfigActivity;
+import com.czt.bbt.receiver.BusAlertRideRoutineConfigActivity;
 import com.czt.bbt.receiver.BusAlertRoutineConfigActivity;
 import com.czt.bbt.receiver.BusAlertRoutineConfigActivity_MembersInjector;
+import com.czt.bbt.receiver.BusAlertRoutineExecutionActivity;
 import com.czt.bbt.service.BusAlertService;
 import com.czt.bbt.service.BusAlertService_MembersInjector;
 import com.czt.bbt.ui.BusViewModel;
@@ -382,9 +385,26 @@ public final class DaggerBusApp_HiltComponents_SingletonC {
     }
 
     @Override
+    public void injectBusAlertArrivalRoutineConfigActivity(
+        BusAlertArrivalRoutineConfigActivity busAlertArrivalRoutineConfigActivity) {
+      injectBusAlertArrivalRoutineConfigActivity2(busAlertArrivalRoutineConfigActivity);
+    }
+
+    @Override
+    public void injectBusAlertRideRoutineConfigActivity(
+        BusAlertRideRoutineConfigActivity busAlertRideRoutineConfigActivity) {
+      injectBusAlertRideRoutineConfigActivity2(busAlertRideRoutineConfigActivity);
+    }
+
+    @Override
     public void injectBusAlertRoutineConfigActivity(
         BusAlertRoutineConfigActivity busAlertRoutineConfigActivity) {
       injectBusAlertRoutineConfigActivity2(busAlertRoutineConfigActivity);
+    }
+
+    @Override
+    public void injectBusAlertRoutineExecutionActivity(
+        BusAlertRoutineExecutionActivity busAlertRoutineExecutionActivity) {
     }
 
     @Override
@@ -416,6 +436,18 @@ public final class DaggerBusApp_HiltComponents_SingletonC {
     @Override
     public ViewComponentBuilder viewComponentBuilder() {
       return new ViewCBuilder(singletonCImpl, activityRetainedCImpl, activityCImpl);
+    }
+
+    private BusAlertArrivalRoutineConfigActivity injectBusAlertArrivalRoutineConfigActivity2(
+        BusAlertArrivalRoutineConfigActivity instance) {
+      BusAlertRoutineConfigActivity_MembersInjector.injectDatabase(instance, singletonCImpl.provideDatabaseProvider.get());
+      return instance;
+    }
+
+    private BusAlertRideRoutineConfigActivity injectBusAlertRideRoutineConfigActivity2(
+        BusAlertRideRoutineConfigActivity instance) {
+      BusAlertRoutineConfigActivity_MembersInjector.injectDatabase(instance, singletonCImpl.provideDatabaseProvider.get());
+      return instance;
     }
 
     private BusAlertRoutineConfigActivity injectBusAlertRoutineConfigActivity2(

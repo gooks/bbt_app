@@ -32,7 +32,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 위젯 설정 화면: exported="true" 및 CONFIGURE 액션 필수 -->
         <!-- 위젯 설정 화면 -->
         <activity android:name=".widget.BusAlertWidgetConfigActivity"
             android:exported="true">
@@ -41,16 +40,10 @@
             </intent-filter>
         </activity>
 
-        <!-- 삼성 루틴 설정 화면: 루틴 앱의 '동작' 리스트에 앱이 뜨게 함 -->
-        <activity android:name=".receiver.BusAlertRoutineConfigActivity"
-            android:label="알림 시작하기"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <action android:name="com.samsung.android.app.routines.CREATE_ROUTINE_ACTION" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+        <!-- 루틴/숏컷 실행을 위한 투명 중계 액티비티 -->
+        <activity android:name=".receiver.BusAlertRoutineExecutionActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true" />
 
         <service
             android:name=".service.BusAlertService"

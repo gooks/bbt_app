@@ -1,98 +1,98 @@
 [
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\drawable_ic_launcher_background.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\drawable\\ic_launcher_background.xml"
+        "merged": "com.czt.bbt.app-debug-4:/xml_shortcuts.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/xml/shortcuts.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxhdpi_ic_launcher_round.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxhdpi\\ic_launcher_round.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\layout_widget_bus_alert.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\layout\\widget_bus_alert.xml"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-mdpi/ic_launcher.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-anydpi-v26\\ic_launcher.xml"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-hdpi/ic_launcher.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-mdpi_ic_launcher.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-mdpi\\ic_launcher.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-mdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xhdpi_ic_launcher_round.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xhdpi\\ic_launcher_round.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xhdpi_ic_launcher_foreground.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xhdpi\\ic_launcher_foreground.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\xml_widget_info.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\xml\\widget_info.xml"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xhdpi/ic_launcher.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-hdpi_ic_launcher.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-hdpi\\ic_launcher.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-hdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxxhdpi_ic_launcher_round.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxxhdpi\\ic_launcher_round.webp"
+        "merged": "com.czt.bbt.app-debug-4:/xml_widget_info.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/xml/widget_info.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxhdpi_ic_launcher.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxhdpi\\ic_launcher.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xhdpi/ic_launcher_round.webp"
     },
     {
         "merged": "com.czt.bbt.app-debug-4:/layout_widget_bus_alert.xml.flat",
         "source": "com.czt.bbt.app-main-6:/layout/widget_bus_alert.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxxhdpi_ic_launcher.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxxhdpi\\ic_launcher.webp"
+        "merged": "com.czt.bbt.app-debug-4:/drawable_bg_widget_stop.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/drawable/bg_widget_stop.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xhdpi_ic_launcher.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xhdpi\\ic_launcher.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.czt.bbt.app-debug-4:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/drawable/ic_launcher_background.xml"
     },
     {
         "merged": "com.czt.bbt.app-debug-4:/drawable_bg_widget_container.xml.flat",
         "source": "com.czt.bbt.app-main-6:/drawable/bg_widget_container.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-mdpi_ic_launcher_round.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-mdpi\\ic_launcher_round.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-hdpi_ic_launcher_foreground.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-hdpi\\ic_launcher_foreground.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\drawable_bg_widget_start.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\drawable\\bg_widget_start.xml"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-xxxhdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-mdpi_ic_launcher_foreground.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-mdpi\\ic_launcher_foreground.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-anydpi-v26/ic_launcher_round.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxhdpi\\ic_launcher_foreground.webp"
+        "merged": "com.czt.bbt.app-debug-4:/drawable_bg_widget_start.xml.flat",
+        "source": "com.czt.bbt.app-main-6:/drawable/bg_widget_start.xml"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-hdpi_ic_launcher_round.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-hdpi\\ic_launcher_round.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-hdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\drawable_bg_widget_stop.xml.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\drawable\\bg_widget_stop.xml"
-    },
-    {
-        "merged": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-debug-4:\\mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "C:\\Users\\이경국\\.gradle\\daemon\\8.13\\com.czt.bbt.app-main-6:\\mipmap-xxxhdpi\\ic_launcher_foreground.webp"
+        "merged": "com.czt.bbt.app-debug-4:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.czt.bbt.app-main-6:/mipmap-mdpi/ic_launcher_foreground.webp"
     }
 ]

@@ -10,26 +10,38 @@ class BusAlertReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         
-        // 루틴에서 보낸 Extra 데이터 확인 (long 또는 string 대응)
+        // 삼성 루틴에서 전달된 Extra 확인 (long 또는 string)
         val alertId = intent.getLongExtra("alert_id", -1L).takeIf { it != -1L }
             ?: intent.getStringExtra("alert_id")?.toLongOrNull() ?: -1L
             
         if (alertId == -1L) return
 
-        val serviceIntent = Intent(context, BusAlertService::class.java).apply {
-            putExtra(BusAlertService.EXTRA_ALERT_ID, alertId)
-        }
+        val prefs = context.getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
 
         when (action) {
-            "com.czt.bbt.ACTION_BUS_RIDE_START", "com.czt.bbt.START_RIDE" -> {
-                serviceIntent.action = BusAlertService.ACTION_START_RIDE
+            "com.czt.bbt.START_RIDE" -> {
+                val activeRideId = prefs.getLong("active_ride_id", -1L)
+                if (activeRideId == alertId) return // 이미 동일한 이동 알림 실행 중
+
+                startService(context, BusAlertService.ACTION_START_RIDE, alertId)
             }
-            "com.czt.bbt.ACTION_BUS_ARRIVAL_START", "com.czt.bbt.START_ARRIVAL" -> {
-                serviceIntent.action = BusAlertService.ACTION_START_ARRIVAL
+            "com.czt.bbt.START_ARRIVAL" -> {
+                val activeArrivalIds = prefs.getString("active_arrival_ids", "") ?: ""
+                val idList = activeArrivalIds.split(",").filter { it.isNotEmpty() }
+                if (idList.contains(alertId.toString())) return // 이미 해당 도착 알림 실행 중
+
+                startService(context, BusAlertService.ACTION_START_ARRIVAL, alertId)
             }
-            "com.czt.bbt.ACTION_BUS_STOP", "com.czt.bbt.STOP_ALERT" -> {
-                serviceIntent.action = BusAlertService.ACTION_STOP_ALERT
+            "com.czt.bbt.STOP_ALERT" -> {
+                startService(context, BusAlertService.ACTION_STOP_ALERT, alertId)
             }
+        }
+    }
+
+    private fun startService(context: Context, action: String, alertId: Long) {
+        val serviceIntent = Intent(context, BusAlertService::class.java).apply {
+            this.action = action
+            putExtra(BusAlertService.EXTRA_ALERT_ID, alertId)
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
