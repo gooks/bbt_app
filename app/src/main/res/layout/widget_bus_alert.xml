@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_container"
+    android:orientation="vertical"
+    android:padding="4dp">
+
+    <!-- 제목 (상단 한 줄 고정) -->
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="버스알림"
+        android:gravity="center"
+        android:textColor="#000000"
+        android:textStyle="bold"
+        android:textSize="10sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:paddingTop="1dp"
+        android:paddingBottom="2dp" />
+
+    <!-- 버튼 영역 (1x1에 맞게 가득 채움) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <Button
+            android:id="@+id/btn_widget_start"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="시작"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:background="@drawable/bg_widget_start" />
+
+        <Button
+            android:id="@+id/btn_widget_stop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="중지"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:visibility="gone"
+            android:background="@drawable/bg_widget_stop" />
+    </FrameLayout>
+</LinearLayout>

@@ -1,0 +1,140 @@
+package com.czt.bbt.ui.screens
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.czt.bbt.ui.BusViewModel
+import kotlinx.coroutines.launch
+
+@Composable
+fun ArrivalAlertScreen(viewModel: BusViewModel) {
+    val alerts by viewModel.arrivalAlerts.collectAsState()
+    var showDialog by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(alerts) { alert ->
+                Card(modifier = Modifier.padding(8.dp).fillMaxWidth(), elevation = CardDefaults.cardElevation(4.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("ID: ${alert.id}", fontSize = 10.sp, color = Color.Gray)
+                        Text(alert.stationName, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("대상 버스: ${alert.targetBusNames.joinToString(", ")}", color = Color.Gray)
+                        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                            val isRunning = viewModel.activeArrivalIds.contains(alert.id)
+                            if (isRunning) {
+                                OutlinedButton(
+                                    onClick = { viewModel.stopArrivalAlert(alert.id) },
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
+                                ) {
+                                    Icon(Icons.Default.Clear, null)
+                                    Text(" 알림중지")
+                                }
+                            } else {
+                                Button(
+                                    onClick = { viewModel.startArrivalAlert(alert) },
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.PlayArrow, null)
+                                    Text(" 알림시작")
+                                }
+                            }
+                            IconButton(onClick = { viewModel.setEditArrivalAlert(alert); showDialog = true }) { Icon(Icons.Default.Edit, "수정") }
+                            IconButton(onClick = { viewModel.deleteArrivalAlert(alert) }) { Icon(Icons.Default.Delete, "삭제", tint = Color.Red) }
+                        }
+                    }
+                }
+            }
+            item {
+                Button(
+                    onClick = { viewModel.stopArrivalAll() }, 
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(), 
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+                ) {
+                    Text("도착 알림 강제 중지")
+                }
+            }
+        }
+        FloatingActionButton(
+            onClick = { viewModel.resetArrivalForm(); showDialog = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.secondary
+        ) { Icon(Icons.Default.Add, "추가", tint = Color.White) }
+    }
+
+    if (showDialog) ArrivalAlertDialog(viewModel) { showDialog = false }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ArrivalAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
+    val isEdit = viewModel.editingArrivalAlert.value != null
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = { viewModel.resetArrivalForm(); onDismiss() },
+        title = { Text(if (isEdit) "알림 수정" else "도착 알림 추가") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (viewModel.arrivalSelectedStation.value == null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = viewModel.arrivalStationSearchQuery.value,
+                            onValueChange = { viewModel.arrivalStationSearchQuery.value = it },
+                            label = { Text("정류장명 검색") },
+                            modifier = Modifier.weight(1f),
+                            trailingIcon = { IconButton(onClick = { viewModel.searchStationForArrival() }) { Icon(Icons.Default.Search, null) } }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(onClick = { scope.launch { viewModel.searchNearbyStationsForArrival() } }) {
+                            Icon(Icons.Default.LocationOn, "내 주변", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    if (viewModel.isLoading.value) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                        items(viewModel.arrivalStationSearchResult) { station ->
+                            ListItem(
+                                headlineContent = { Text(station.name) },
+                                supportingContent = { Text("정류소 번호: ${station.no}") },
+                                modifier = Modifier.clickable { viewModel.selectStationForArrival(station) }
+                            )
+                        }
+                    }
+                } else {
+                    Text("선택된 정류장: ${viewModel.arrivalSelectedStation.value!!.name}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    TextButton(onClick = { viewModel.arrivalSelectedStation.value = null }) { Text("다시 선택") }
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text("알림 받을 버스 선택 (다중):", style = MaterialTheme.typography.labelMedium)
+                    LazyColumn(modifier = Modifier.height(250.dp)) {
+                        items(viewModel.arrivalBusList) { bus ->
+                            val isSelected = viewModel.arrivalSelectedBuses.contains(bus.routeId)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable { viewModel.toggleArrivalBusSelection(bus) }.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(checked = isSelected, onCheckedChange = { viewModel.toggleArrivalBusSelection(bus) })
+                                Text("${bus.name}번 (${bus.type})")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { viewModel.saveArrivalAlert(); onDismiss() }, enabled = viewModel.arrivalSelectedBuses.isNotEmpty()) {
+                Text(if (isEdit) "수정 완료" else "추가")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } }
+    )
+}

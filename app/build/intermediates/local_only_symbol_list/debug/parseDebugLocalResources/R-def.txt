@@ -1,0 +1,23 @@
+R_DEF: Internal format may change without notice
+local
+color black
+color purple_200
+color purple_500
+color purple_700
+color teal_200
+color teal_700
+color white
+drawable bg_widget_container
+drawable bg_widget_start
+drawable bg_widget_stop
+drawable ic_launcher_background
+id btn_widget_start
+id btn_widget_stop
+id widget_title
+layout widget_bus_alert
+mipmap ic_launcher
+mipmap ic_launcher_foreground
+mipmap ic_launcher_round
+string app_name
+style Theme.BusApp
+xml widget_info

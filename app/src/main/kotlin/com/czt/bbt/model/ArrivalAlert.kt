@@ -1,0 +1,16 @@
+package com.czt.bbt.model
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
+
+@Entity(tableName = "arrival_alerts")
+data class ArrivalAlert(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val stationName: String,
+    val stationId: String,
+    @TypeConverters(Converters::class)
+    val targetBusNumbers: List<String>, // RouteIDs
+    @TypeConverters(Converters::class)
+    val targetBusNames: List<String> = emptyList() // RouteNames (추가)
+)

@@ -1,0 +1,348 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.czt.bbt"
+4    android:versionCode="1"
+5    android:versionName="0.2.1_01" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:4:5-67
+11-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+12-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:5:5-79
+12-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:5:22-76
+13    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+13-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:6:5-81
+13-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:6:22-78
+14    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+14-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:7:5-85
+14-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:7:22-82
+15    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+15-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:8:5-77
+15-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:8:22-74
+16    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+16-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:9:5-86
+16-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:9:22-83
+17    <uses-permission android:name="android.permission.WAKE_LOCK" />
+17-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:10:5-68
+17-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:10:22-65
+18    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+18-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:11:5-79
+18-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:11:22-76
+19    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+19-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:12:5-77
+19-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:12:22-74
+20    <uses-permission android:name="android.permission.VIBRATE" />
+20-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:13:5-66
+20-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:13:22-63
+21
+22    <queries>
+22-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:9:5-22:15
+23        <package android:name="com.kakao.talk" />
+23-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:10:9-50
+23-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:10:18-47
+24        <package android:name="com.kakao.talk.alpha" />
+24-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:11:9-56
+24-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:11:18-53
+25        <package android:name="com.kakao.talk.sandbox" />
+25-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:12:9-58
+25-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:12:18-55
+26        <package android:name="com.kakao.onetalk" />
+26-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:13:9-53
+26-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:13:18-50
+27
+28        <intent>
+28-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:15:9-21:18
+29            <action android:name="android.intent.action.VIEW" />
+29-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:16:13-65
+29-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:16:21-62
+30
+31            <category android:name="android.intent.category.BROWSABLE" />
+31-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:18:13-74
+31-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:18:23-71
+32
+33            <data android:scheme="https" />
+33-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:20:13-44
+33-->[com.kakao.sdk:v2-common:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\2fb34e58078c96d25a8095dce2b729bd\transformed\jetified-v2-common-2.19.0\AndroidManifest.xml:20:19-41
+34        </intent>
+35    </queries>
+36
+37    <permission
+37-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+38        android:name="com.czt.bbt.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+38-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+39        android:protectionLevel="signature" />
+39-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+40
+41    <uses-permission android:name="com.czt.bbt.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+41-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+41-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+42
+43    <application
+43-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:15:5-85:19
+44        android:name="com.czt.bbt.BusApp"
+44-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:16:9-31
+45        android:allowBackup="true"
+45-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:17:9-35
+46        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+46-->[androidx.core:core:1.12.0] C:\Users\이경국\.gradle\caches\8.13\transforms\f5c94a5e58d464efe32675cbbe3071ba\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+47        android:debuggable="true"
+48        android:extractNativeLibs="false"
+49        android:icon="@mipmap/ic_launcher"
+49-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:18:9-43
+50        android:label="@string/app_name"
+50-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:19:9-41
+51        android:roundIcon="@mipmap/ic_launcher_round"
+51-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:20:9-54
+52        android:supportsRtl="true"
+52-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:21:9-35
+53        android:theme="@style/Theme.BusApp"
+53-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:22:9-44
+54        android:usesCleartextTraffic="true" >
+54-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:23:9-44
+55        <activity
+55-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:25:9-33:20
+56            android:name="com.czt.bbt.MainActivity"
+56-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:26:13-41
+57            android:exported="true"
+57-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:27:13-36
+58            android:theme="@style/Theme.BusApp" >
+58-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:28:13-48
+59            <intent-filter>
+59-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:29:13-32:29
+60                <action android:name="android.intent.action.MAIN" />
+60-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:30:17-69
+60-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:30:25-66
+61
+62                <category android:name="android.intent.category.LAUNCHER" />
+62-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:31:17-77
+62-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:31:27-74
+63            </intent-filter>
+64        </activity>
+65
+66        <!-- 위젯 설정 화면: exported="true" 및 CONFIGURE 액션 필수 -->
+67        <!-- 위젯 설정 화면 -->
+68        <activity
+68-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:37:9-42:20
+69            android:name="com.czt.bbt.widget.BusAlertWidgetConfigActivity"
+69-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:37:19-70
+70            android:exported="true" >
+70-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:38:13-36
+71            <intent-filter>
+71-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:39:13-41:29
+72                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+72-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:40:17-87
+72-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:40:25-84
+73            </intent-filter>
+74        </activity>
+75
+76        <!-- 삼성 루틴 설정 화면: 루틴 앱의 '동작' 리스트에 앱이 뜨게 함 -->
+77        <activity
+77-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:45:9-53:20
+78            android:name="com.czt.bbt.receiver.BusAlertRoutineConfigActivity"
+78-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:45:19-73
+79            android:exported="true"
+79-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:47:13-36
+80            android:label="알림 시작하기" >
+80-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:46:13-36
+81            <intent-filter>
+81-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:48:13-52:29
+82                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+82-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:49:17-80
+82-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:49:25-77
+83                <action android:name="com.samsung.android.app.routines.CREATE_ROUTINE_ACTION" />
+83-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:50:17-97
+83-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:50:25-94
+84
+85                <category android:name="android.intent.category.DEFAULT" />
+85-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:51:17-76
+85-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:51:27-73
+86            </intent-filter>
+87        </activity>
+88
+89        <service
+89-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:55:9-59:56
+90            android:name="com.czt.bbt.service.BusAlertService"
+90-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:56:13-52
+91            android:enabled="true"
+91-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:57:13-35
+92            android:exported="false"
+92-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:58:13-37
+93            android:foregroundServiceType="location" />
+93-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:59:13-53
+94
+95        <!-- 위젯 등록 -->
+96        <receiver
+96-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:62:9-72:20
+97            android:name="com.czt.bbt.widget.BusAlertWidget"
+97-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:63:13-50
+98            android:exported="false" >
+98-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:64:13-37
+99            <intent-filter>
+99-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:65:13-68:29
+100                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+100-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:66:17-84
+100-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:66:25-81
+101                <action android:name="com.czt.bbt.ACTION_WIDGET_REFRESH" />
+101-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:67:17-76
+101-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:67:25-73
+102            </intent-filter>
+103
+104            <meta-data
+104-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:69:13-71:55
+105                android:name="android.appwidget.provider"
+105-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:70:17-58
+106                android:resource="@xml/widget_info" />
+106-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:71:17-52
+107        </receiver>
+108
+109        <!-- 삼성 루틴 연동을 위한 전용 리시버 (exported="true" 필수) -->
+110        <receiver
+110-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:75:9-83:20
+111            android:name="com.czt.bbt.receiver.BusAlertReceiver"
+111-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:76:13-54
+112            android:exported="true" >
+112-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:77:13-36
+113            <intent-filter>
+113-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:78:13-82:29
+114                <action android:name="com.czt.bbt.START_RIDE" />
+114-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:79:17-65
+114-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:79:25-62
+115                <action android:name="com.czt.bbt.START_ARRIVAL" />
+115-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:80:17-68
+115-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:80:25-65
+116                <action android:name="com.czt.bbt.STOP_ALERT" />
+116-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:81:17-65
+116-->C:\Android\Project\bbt_app\app\src\main\AndroidManifest.xml:81:25-62
+117            </intent-filter>
+118        </receiver>
+119
+120        <activity
+120-->[androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:23:9-25:39
+121            android:name="androidx.compose.ui.tooling.PreviewActivity"
+121-->[androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:24:13-71
+122            android:exported="true" />
+122-->[androidx.compose.ui:ui-tooling-android:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\6478251fd6675e0b70ad2a0a5e1f6c17\transformed\jetified-ui-tooling-release\AndroidManifest.xml:25:13-36
+123        <activity
+123-->[androidx.compose.ui:ui-test-manifest:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\fabf23bc6b4f3f0e94747b77381307cc\transformed\jetified-ui-test-manifest-1.5.0\AndroidManifest.xml:23:9-25:39
+124            android:name="androidx.activity.ComponentActivity"
+124-->[androidx.compose.ui:ui-test-manifest:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\fabf23bc6b4f3f0e94747b77381307cc\transformed\jetified-ui-test-manifest-1.5.0\AndroidManifest.xml:24:13-63
+125            android:exported="true" />
+125-->[androidx.compose.ui:ui-test-manifest:1.5.0] C:\Users\이경국\.gradle\caches\8.13\transforms\fabf23bc6b4f3f0e94747b77381307cc\transformed\jetified-ui-test-manifest-1.5.0\AndroidManifest.xml:25:13-36
+126        <activity
+126-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\bda155e9e336af200890dba918667c6a\transformed\jetified-play-services-base-18.1.0\AndroidManifest.xml:20:9-22:45
+127            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+127-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\bda155e9e336af200890dba918667c6a\transformed\jetified-play-services-base-18.1.0\AndroidManifest.xml:20:19-85
+128            android:exported="false"
+128-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\bda155e9e336af200890dba918667c6a\transformed\jetified-play-services-base-18.1.0\AndroidManifest.xml:22:19-43
+129            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+129-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\bda155e9e336af200890dba918667c6a\transformed\jetified-play-services-base-18.1.0\AndroidManifest.xml:21:19-78
+130
+131        <service
+131-->[androidx.room:room-runtime:2.6.1] C:\Users\이경국\.gradle\caches\8.13\transforms\333cee545ccf0ce9e7f3ea6a4dd27fb8\transformed\room-runtime-2.6.1\AndroidManifest.xml:24:9-28:63
+132            android:name="androidx.room.MultiInstanceInvalidationService"
+132-->[androidx.room:room-runtime:2.6.1] C:\Users\이경국\.gradle\caches\8.13\transforms\333cee545ccf0ce9e7f3ea6a4dd27fb8\transformed\room-runtime-2.6.1\AndroidManifest.xml:25:13-74
+133            android:directBootAware="true"
+133-->[androidx.room:room-runtime:2.6.1] C:\Users\이경국\.gradle\caches\8.13\transforms\333cee545ccf0ce9e7f3ea6a4dd27fb8\transformed\room-runtime-2.6.1\AndroidManifest.xml:26:13-43
+134            android:exported="false" />
+134-->[androidx.room:room-runtime:2.6.1] C:\Users\이경국\.gradle\caches\8.13\transforms\333cee545ccf0ce9e7f3ea6a4dd27fb8\transformed\room-runtime-2.6.1\AndroidManifest.xml:27:13-37
+135
+136        <activity
+136-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:10:9-15:56
+137            android:name="com.kakao.sdk.auth.TalkAuthCodeActivity"
+137-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:11:13-67
+138            android:configChanges="orientation|screenSize|keyboardHidden"
+138-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:12:13-74
+139            android:exported="false"
+139-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:13:13-37
+140            android:launchMode="singleTask"
+140-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:14:13-44
+141            android:theme="@style/TransparentCompat" />
+141-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:15:13-53
+142        <activity
+142-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:16:9-19:56
+143            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+143-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:17:13-70
+144            android:launchMode="singleTask"
+144-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:18:13-44
+145            android:theme="@style/TransparentCompat" />
+145-->[com.kakao.sdk:v2-auth:2.19.0] C:\Users\이경국\.gradle\caches\8.13\transforms\71a4bb426a85bcc0453e374e22759aa6\transformed\jetified-v2-auth-2.19.0\AndroidManifest.xml:19:13-53
+146
+147        <provider
+147-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+148            android:name="androidx.startup.InitializationProvider"
+148-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:25:13-67
+149            android:authorities="com.czt.bbt.androidx-startup"
+149-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:26:13-68
+150            android:exported="false" >
+150-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:27:13-37
+151            <meta-data
+151-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+152                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+152-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:30:17-75
+153                android:value="androidx.startup" />
+153-->[androidx.emoji2:emoji2:1.4.0] C:\Users\이경국\.gradle\caches\8.13\transforms\05681ee38e8889c9d3597d58619d9e97\transformed\jetified-emoji2-1.4.0\AndroidManifest.xml:31:17-49
+154            <meta-data
+154-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\이경국\.gradle\caches\8.13\transforms\45ddd454116ff74a280e38b777a468ca\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+155                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+155-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\이경국\.gradle\caches\8.13\transforms\45ddd454116ff74a280e38b777a468ca\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+156                android:value="androidx.startup" />
+156-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\이경국\.gradle\caches\8.13\transforms\45ddd454116ff74a280e38b777a468ca\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+157            <meta-data
+157-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:29:13-31:52
+158                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+158-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:30:17-85
+159                android:value="androidx.startup" />
+159-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:31:17-49
+160        </provider>
+161
+162        <meta-data
+162-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\b20a3190a430af14a0e4edac70bf7b73\transformed\jetified-play-services-basement-18.1.0\AndroidManifest.xml:21:9-23:69
+163            android:name="com.google.android.gms.version"
+163-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\b20a3190a430af14a0e4edac70bf7b73\transformed\jetified-play-services-basement-18.1.0\AndroidManifest.xml:22:13-58
+164            android:value="@integer/google_play_services_version" />
+164-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\이경국\.gradle\caches\8.13\transforms\b20a3190a430af14a0e4edac70bf7b73\transformed\jetified-play-services-basement-18.1.0\AndroidManifest.xml:23:13-66
+165
+166        <receiver
+166-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:34:9-52:20
+167            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+167-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:35:13-76
+168            android:directBootAware="false"
+168-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:36:13-44
+169            android:enabled="true"
+169-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:37:13-35
+170            android:exported="true"
+170-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:38:13-36
+171            android:permission="android.permission.DUMP" >
+171-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:39:13-57
+172            <intent-filter>
+172-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:40:13-42:29
+173                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+173-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:17-91
+173-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:25-88
+174            </intent-filter>
+175            <intent-filter>
+175-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:43:13-45:29
+176                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+176-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:17-85
+176-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:25-82
+177            </intent-filter>
+178            <intent-filter>
+178-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:46:13-48:29
+179                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+179-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:17-88
+179-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:25-85
+180            </intent-filter>
+181            <intent-filter>
+181-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:49:13-51:29
+182                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+182-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:17-95
+182-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\이경국\.gradle\caches\8.13\transforms\18710f295de5b4d101357452fe045ce6\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:25-92
+183            </intent-filter>
+184        </receiver>
+185    </application>
+186
+187</manifest>

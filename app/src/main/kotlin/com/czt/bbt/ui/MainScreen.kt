@@ -1,0 +1,50 @@
+package com.czt.bbt.ui
+
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import com.czt.bbt.ui.screens.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BusAppScreen(
+    viewModel: BusViewModel, 
+    tts: TextToSpeech?, 
+    wordRange: State<Pair<Int, Int>?>,
+    availableVoices: List<Voice>,
+    selectedVoice: MutableState<Voice?>
+) {
+    var tabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("이동이력", "버스이동", "버스도착", "🚧")
+
+    Scaffold(
+        topBar = {
+            Column {
+                CenterAlignedTopAppBar(
+                    title = { Text("버스알림", fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+                TabRow(selectedTabIndex = tabIndex) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
+            when (tabIndex) {
+                0 -> HistoryScreen(viewModel)
+                1 -> RideAlertScreen(viewModel)
+                2 -> ArrivalAlertScreen(viewModel)
+                3 -> LabScreen(viewModel, tts, wordRange, availableVoices, selectedVoice)
+            }
+        }
+    }
+}
