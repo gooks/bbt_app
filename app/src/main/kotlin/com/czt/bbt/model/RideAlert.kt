@@ -15,5 +15,7 @@ data class RideAlert(
     @TypeConverters(Converters::class)
     val shareEmails: List<String> = emptyList(),
     val shareKakao: Boolean = false,
+    val shareType: String = "REALTIME", // "REALTIME" 또는 "HISTORY"
+    val shareKakaoTarget: String = "", // 공유 대상 이름 (예: 엄마, 친구)
     val shareMemo: String = "" // 추가
 )

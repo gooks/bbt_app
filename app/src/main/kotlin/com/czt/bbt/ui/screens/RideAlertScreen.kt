@@ -123,14 +123,37 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                     }
                     if (viewModel.rideShareKakao.value) {
                         OutlinedTextField(
-                            value = viewModel.rideShareMemo.value,
-                            onValueChange = { viewModel.rideShareMemo.value = it },
-                            label = { Text("누구에게 공유할까요? (메모)") },
-                            placeholder = { Text("예: 엄마, 친구들") },
-                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp, bottom = 8.dp),
+                            value = viewModel.rideShareKakaoTarget.value,
+                            onValueChange = { viewModel.rideShareKakaoTarget.value = it },
+                            label = { Text("공유 대상 (누구에게 보낼까요?)") },
+                            placeholder = { Text("예: 엄마, 선생님") },
+                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp),
                             singleLine = true
                         )
-                        Text("* 승/하차 감지 시 카톡 친구 선택 창이 나타납니다.", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(start = 28.dp))
+                        
+                        Text("공유 시점 선택:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 28.dp, top = 8.dp))
+                        Row(modifier = Modifier.padding(start = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = viewModel.rideShareType.value == "REALTIME",
+                                onClick = { viewModel.rideShareType.value = "REALTIME" }
+                            )
+                            Text("실시간 (승/하차 시 즉시)", fontSize = 12.sp, modifier = Modifier.clickable { viewModel.rideShareType.value = "REALTIME" })
+                            Spacer(modifier = Modifier.width(8.dp))
+                            RadioButton(
+                                selected = viewModel.rideShareType.value == "HISTORY",
+                                onClick = { viewModel.rideShareType.value = "HISTORY" }
+                            )
+                            Text("이력공유 (하차 후 요약)", fontSize = 12.sp, modifier = Modifier.clickable { viewModel.rideShareType.value = "HISTORY" })
+                        }
+                        
+                        OutlinedTextField(
+                            value = viewModel.rideShareMemo.value,
+                            onValueChange = { viewModel.rideShareMemo.value = it },
+                            label = { Text("메모 (선택사항)") },
+                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp, top = 4.dp),
+                            singleLine = true
+                        )
+                        Text("* 승/하차 감지 시 카톡 친구 선택 창이 나타납니다.", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(start = 28.dp, top = 4.dp))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

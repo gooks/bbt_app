@@ -421,10 +421,24 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun shareStatus(type: String, busNo: String, plateNo: String, time: Long, station: String, summary: String = "") {
         val alert = activeRideAlert ?: return
         val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
-        val memo = if (alert.shareMemo.isNotEmpty()) " (${alert.shareMemo}님에게)" else ""
+        val targetName = if (alert.shareKakaoTarget.isNotEmpty()) " (${alert.shareKakaoTarget}님에게)" else ""
+        
         serviceScope.launch {
-            alert.shareEmails.forEach { email -> com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, "$type$memo", summary) }
-            if (alert.shareKakao) { com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, "$type$memo", summary) }
+            // 이메일은 항상 실시간 전송 (또는 정책에 따라)
+            alert.shareEmails.forEach { email -> 
+                com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, "$type$targetName", summary) 
+            }
+            
+            // 카카오톡 공유
+            if (alert.shareKakao) {
+                if (alert.shareType == "REALTIME" || summary.isNotEmpty()) {
+                    // 실시간 모드이거나, 하차 시 요약 정보(summary)가 있는 경우에만 전송
+                    com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, "$type$targetName", summary)
+                    repository.logSystem("SHARE_SEND", "카톡 전송 시도: $type to ${alert.shareKakaoTarget}")
+                } else {
+                    repository.logSystem("SHARE_SKIP", "이력공유 모드이므로 실시간 카톡 전송 스킵: $type")
+                }
+            }
         }
     }
 

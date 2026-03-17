@@ -54,6 +54,8 @@ class BusViewModel @Inject constructor(
     var editingRideAlert = mutableStateOf<RideAlert?>(null)
     var rideShareEmails = mutableStateListOf<String>()
     var rideShareKakao = mutableStateOf(false)
+    var rideShareType = mutableStateOf("REALTIME") // "REALTIME" 또는 "HISTORY"
+    var rideShareKakaoTarget = mutableStateOf("") // 공유 대상
     var rideShareMemo = mutableStateOf("")
     var rideTempEmail = mutableStateOf("")
 
@@ -195,6 +197,8 @@ class BusViewModel @Inject constructor(
         rideShareEmails.clear()
         rideShareEmails.addAll(alert.shareEmails)
         rideShareKakao.value = alert.shareKakao
+        rideShareType.value = alert.shareType
+        rideShareKakaoTarget.value = alert.shareKakaoTarget
         rideShareMemo.value = alert.shareMemo
         loadRouteStations(alert.busRouteId)
     }
@@ -222,6 +226,8 @@ class BusViewModel @Inject constructor(
                 destinationStationSeq = dest.seq,
                 shareEmails = rideShareEmails.toList(),
                 shareKakao = rideShareKakao.value,
+                shareType = rideShareType.value,
+                shareKakaoTarget = rideShareKakaoTarget.value,
                 shareMemo = rideShareMemo.value
             )
             if (editingRideAlert.value == null) repository.insertRideAlert(alert) else repository.updateRideAlert(alert)
@@ -238,6 +244,8 @@ class BusViewModel @Inject constructor(
         editingRideAlert.value = null
         rideShareEmails.clear()
         rideShareKakao.value = false
+        rideShareType.value = "REALTIME"
+        rideShareKakaoTarget.value = ""
         rideShareMemo.value = ""
         rideTempEmail.value = ""
     }
