@@ -62,6 +62,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     // Arrival Notification State
     private var lastAlertStops: Int = -1
     private val lastArrivalAlertStops = mutableMapOf<Long, Int>()
+    private val lastAnnouncedRouteId = mutableMapOf<Long, String>()
 
     // Ride Mode State
     private var boardingStationName: String? = null
@@ -324,24 +325,42 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             }
 
             val sorted = results.sortedBy { it.third }
-            val content = sorted.joinToString("\n") { (busName, _, time) ->
+            val earliestBus = sorted.first()
+            val minTimeSec = earliestBus.third
+            val earliestRouteId = earliestBus.second
+            val busName = earliestBus.first
+
+            // 가장 빨리 도착하는 버스가 변경되었다면 안내 상태 초기화
+            if (lastAnnouncedRouteId[alertId] != earliestRouteId) {
+                lastAnnouncedRouteId[alertId] = earliestRouteId
+                lastArrivalAlertStops[alertId] = -1
+            }
+
+            // TTS 알림 (버스 이동 알림처럼 특정 임계치에서 안내)
+            if (minTimeSec <= 180) { // 3분 이내
+                val threshold = when {
+                    minTimeSec <= 65 -> 1  // 약 1분 전 (잠시 후)
+                    minTimeSec <= 185 -> 3 // 약 3분 전
+                    else -> -1
+                }
+
+                if (threshold != -1 && lastArrivalAlertStops[alertId] != threshold) {
+                    triggerAlertEffects()
+                    if (threshold == 1) {
+                        speak("$busName 버스가 잠시 후 도착합니다. 승차 준비를 해주세요.")
+                    } else {
+                        speak("$busName 버스가 약 3분 후에 도착합니다.")
+                    }
+                    lastArrivalAlertStops[alertId] = threshold
+                }
+            }
+
+            val content = sorted.joinToString("\n") { (name, _, time) ->
                 val minutes = time / 60
                 val seconds = time % 60
-                "[${busName}] ${if (minutes > 0) "${minutes}분 ${seconds}초" else "${seconds}초"} 후 도착"
+                "[$name] ${if (minutes > 0) "${minutes}분 ${seconds}초" else "${seconds}초"} 후 도착"
             }
             updateArrivalNotification(alertId, title, content)
-
-            val minTimeSec = sorted.first().third
-            
-            // TTS 알림 (3분 이내, 정류장 수 기반이 아닌 시간 기반)
-            val threeMin = 180
-            if (minTimeSec <= threeMin && lastArrivalAlertStops[alertId] != (minTimeSec / 60)) {
-                triggerAlertEffects()
-                val busName = sorted.first().first
-                val minutes = minTimeSec / 60
-                speak("$busName 버스가 약 ${minutes + 1}분 후에 도착합니다.")
-                lastArrivalAlertStops[alertId] = minutes
-            }
             
             // 동적 딜레이 반환
             return when {
