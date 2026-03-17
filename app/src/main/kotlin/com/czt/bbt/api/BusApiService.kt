@@ -5,7 +5,8 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface BusApiService {
-    // 1. 경기도 버스 노선번호 목록조회 v2
+    // 1. 경기도 버스 노선번호 목록조회 v2 : 노선번호에 해당하는 노선의 목록을 조회한다
+    // 노선 검색에서 사용
     @GET("6410000/busrouteservice/v2/getBusRouteListv2")
     suspend fun getBusRouteList(
         @Query("serviceKey") serviceKey: String,
@@ -13,7 +14,8 @@ interface BusApiService {
         @Query("format") format: String = "json"
     ): Response<GBusRouteResponse>
 
-    // 2. 경기도 버스 실시간 위치정보 v2
+    // 2. 경기도 버스 실시간 위치정보 v2 : 노선 ID 에 해당하는 노선의 실시간 차량 위치 정보를 조회한다
+    // 위치조회에서 사용
     @GET("6410000/buslocationservice/v2/getBusLocationListv2")
     suspend fun getBusLocationList(
         @Query("serviceKey") serviceKey: String,
@@ -21,15 +23,7 @@ interface BusApiService {
         @Query("format") format: String = "json"
     ): Response<GBusLocationResponse>
 
-    // 3. 경기도 버스 정류소 상세 조회 v2
-    @GET("6410000/busstationservice/v2/busStationInfov2")
-    suspend fun getBusStationInfo(
-        @Query("serviceKey") serviceKey: String,
-        @Query("stationId") stationId: String,
-        @Query("format") format: String = "json"
-    ): Response<GBusStationDetailResponse>
-
-    // 4. 경기도 버스 주변정류소 목록조회 v2
+    // 4. 경기도 버스 주변정류소 목록조회 v2 : 위치 좌표(WGS84) 반경 500m 내에 있는 정류소 목록 (정류소명, ID, 정류소번호, 좌표값, 중앙차로여부 등) 을 제공한다.
     @GET("6410000/busstationservice/v2/getBusStationAroundListv2")
     suspend fun getBusStationAroundList(
         @Query("serviceKey") serviceKey: String,
@@ -38,7 +32,7 @@ interface BusApiService {
         @Query("format") format: String = "json"
     ): Response<GBusStationAroundResponse>
 
-    // 5. 경기도 버스 경유 정류소 목록 조회 v2 (새로 추가)
+    // 5. 경기도 버스 경유 정류소 목록 조회 v2 : 노선ID에 해당하는 노선의 경유 정류소 목록을 조회한다
     @GET("6410000/busrouteservice/v2/getBusRouteStationListv2")
     suspend fun getBusRouteStationList(
         @Query("serviceKey") serviceKey: String,
@@ -46,15 +40,7 @@ interface BusApiService {
         @Query("format") format: String = "json"
     ): Response<GBusRouteStationResponse>
 
-    // 6. 경기도 버스 도착 정보 조회 (v2 없음)
-    @GET("6410000/busarrivalservice/getBusArrivalList")
-    suspend fun getBusArrivalList(
-        @Query("serviceKey") serviceKey: String,
-        @Query("stationId") stationId: String,
-        @Query("format") format: String = "json"
-    ): Response<GBusArrivalResponse>
-
-    // 7. 경기도 버스 정류소 목록 조회 v2 (검색)
+    // 6. 경기도 버스 정류소명/번호 목록조회 v2 : 정류소명/번호에 해당하는 정류소 목록(정류소명, ID, 정류소번호, 좌표값, 중앙차로여부 등)을 제공한다.
     @GET("6410000/busstationservice/v2/getBusStationListv2")
     suspend fun getBusStationList(
         @Query("serviceKey") serviceKey: String,
@@ -62,14 +48,75 @@ interface BusApiService {
         @Query("format") format: String = "json"
     ): Response<GBusStationListResponse>
 
-    // 8. 경기도 버스 정류소 경유 노선 목록 조회 v2 (정확한 경로 적용)
+    // 7. 경기도 버스 정류소 경유 노선 목록 조회 v2 : 해당 정류소를 경유하는 모든 노선정보(노선번호, ID, 유형, 운행지역 등)를 제공한다.
     @GET("6410000/busstationservice/v2/getBusStationViaRouteListv2")
     suspend fun getBusStationViaRouteList(
         @Query("serviceKey") serviceKey: String,
         @Query("stationId") stationId: String,
         @Query("format") format: String = "json"
     ): Response<GBusStationViaRouteResponse>
+
+    // 8. 경기도 버스 도착 정보 목록 조회 v2
+    @GET("6410000/busarrivalservice/v2/getBusArrivalListv2")
+    suspend fun getBusArrivalListV2(
+        @Query("serviceKey") serviceKey: String,
+        @Query("stationId") stationId: String,
+        @Query("format") format: String = "json"
+    ): Response<GBusArrivalListResponseV2>
+
+    // 9. 경기도 버스 도착 정보 항목 조회 v2
+    @GET("6410000/busarrivalservice/v2/getBusArrivalItemv2")
+    suspend fun getBusArrivalItemV2(
+        @Query("serviceKey") serviceKey: String,
+        @Query("stationId") stationId: String,
+        @Query("routeId") routeId: String,
+        @Query("staOrder") staOrder: String,
+        @Query("format") format: String = "json"
+    ): Response<GBusArrivalItemResponseV2>
 }
+
+// --- 도착 정보 응답 모델 V2 ---
+data class GBusArrivalListResponseV2(val response: GBusArrivalDataV2)
+data class GBusArrivalDataV2(val msgHeader: GBusHeader, val msgBody: GBusArrivalBodyV2?)
+data class GBusArrivalBodyV2(val busArrivalList: List<GBusArrivalInfoItem>?)
+
+data class GBusArrivalItemResponseV2(val response: GBusArrivalItemDataV2)
+data class GBusArrivalItemDataV2(val msgHeader: GBusHeader, val msgBody: GBusArrivalItemBodyV2?)
+data class GBusArrivalItemBodyV2(val busArrivalItem: GBusArrivalInfoItem?)
+
+data class GBusArrivalInfoItem(
+    val stateCd2: Int?,
+    val crowded1: Int?,
+    val crowded2: Int?,
+    val flag: String?,
+    val locationNo1: Int?,
+    val locationNo2: Int?,
+    val lowPlate1: Int?,
+    val lowPlate2: Int?,
+    val plateNo1: String?,
+    val plateNo2: String?,
+    val predictTime1: Int?,
+    val predictTime2: Int?,
+    val remainSeatCnt1: Int?,
+    val remainSeatCnt2: Int?,
+    val routeDestId: Int?,
+    val routeDestName: String?,
+    val routeId: Int,
+    val routeName: String?,
+    val routeTypeCd: Int?,
+    val staOrder: Int,
+    val stationId: Int,
+    val stationNm1: String?,
+    val stationNm2: String?,
+    val taglessCd1: Int?,
+    val taglessCd2: Int?,
+    val turnSeq: Int?,
+    val vehId1: Int?,
+    val vehId2: Int?,
+    val predictTimeSec1: Int?,
+    val predictTimeSec2: Int?,
+    val stateCd1: Int?
+)
 
 // --- 정류소 경유 노선 응답 모델 ---
 data class GBusStationViaRouteResponse(val response: GBusStationViaRouteData)
@@ -87,24 +134,6 @@ data class GBusStationViaRouteItem(
 data class GBusStationListResponse(val response: GBusStationListData)
 data class GBusStationListData(val msgHeader: GBusHeader, val msgBody: GBusStationListBody?)
 data class GBusStationListBody(val busStationList: Any?)
-
-// --- 도착 정보 응답 모델 ---
-data class GBusArrivalResponse(val response: GBusArrivalData)
-data class GBusArrivalData(val msgHeader: GBusHeader, val msgBody: GBusArrivalBody?)
-data class GBusArrivalBody(val busArrivalList: Any?)
-data class GBusArrivalItem(
-    val routeId: Long,
-    val stationId: Long,
-    val predictTime1: Int, // 첫번째 버스 도착예정시간(분)
-    val predictTime2: Int?, // 두번째 버스 도착예정시간(분)
-    val locationNo1: Int, // 첫번째 버스 위치(몇 번째 전 정류소)
-    val locationNo2: Int?, // 두번째 버스 위치(몇 번째 전 정류소)
-    val remainSeatCnt1: Int, // 첫번째 버스 잔여좌석
-    val remainSeatCnt2: Int?, // 두번째 버스 잔여좌석
-    val plateNo1: String?, // 첫번째 버스 차량번호
-    val plateNo2: String?, // 두번째 버스 차량번호
-    val staOrder: Int? // 정류소 순서
-)
 
 // --- 경유 정류소 응답 모델 ---
 data class GBusRouteStationResponse(val response: GBusRouteStationData)

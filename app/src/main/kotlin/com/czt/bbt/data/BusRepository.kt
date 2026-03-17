@@ -75,7 +75,6 @@ class BusRepository @Inject constructor(
         } catch (e: Exception) { emptyList() }
     }
 
-    suspend fun getBusArrivalList(stationId: String) = apiCall("도착정보") { apiService.getBusArrivalList(serviceKey, stationId) }
     suspend fun searchStation(keyword: String): com.czt.bbt.api.GBusStationListResponse {
         updateApiCount("정류소검색")
         return apiCall("정류소검색") { apiService.getBusStationList(serviceKey, keyword) }
@@ -84,6 +83,16 @@ class BusRepository @Inject constructor(
     suspend fun getBusStationViaRouteList(stationId: String): com.czt.bbt.api.GBusStationViaRouteResponse {
         updateApiCount("경유노선조회")
         return apiCall("경유노선조회") { apiService.getBusStationViaRouteList(serviceKey, stationId) }
+    }
+
+    suspend fun getBusArrivalListV2(stationId: String): com.czt.bbt.api.GBusArrivalListResponseV2 {
+        updateApiCount("도착정보목록")
+        return apiCall("도착정보목록") { apiService.getBusArrivalListV2(serviceKey, stationId) }
+    }
+
+    suspend fun getBusArrivalItemV2(stationId: String, routeId: String, staOrder: String): com.czt.bbt.api.GBusArrivalItemResponseV2 {
+        updateApiCount("도착정보항목")
+        return apiCall("도착정보항목") { apiService.getBusArrivalItemV2(serviceKey, stationId, routeId, staOrder) }
     }
 
     // Alerts & History

@@ -96,8 +96,7 @@ fun ApiUsageScreen(viewModel: BusViewModel, onBack: () -> Unit) {
         )
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            val tags = listOf("노선검색", "위치조회", "주변정류소", "경유정류소", "정류소검색", "경유노선조회")
-            items(tags) { tag ->
+            items(usage.keys.sorted()) { tag ->
                 val count = usage[tag] ?: 1000
                 Card(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth()) {
                     Row(
