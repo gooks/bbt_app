@@ -4,13 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.kakao.sdk.share.ShareClient
+import com.kakao.sdk.talk.TalkApiClient
 import com.kakao.sdk.template.model.*
 
 object NotificationHelper {
 
     fun sendKakaoMessage(context: Context, busNo: String, plateNo: String, time: String, station: String, type: String, summary: String = "") {
-        // type: "승차", "하차", "도착 안내" 등
         val title = "[버스알림] $type 안내"
         val description = if (summary.isNotEmpty()) summary else "버스 번호: ${busNo}번\n차량 번호: $plateNo\n시간: $time\n정류장: $station"
 
@@ -18,19 +17,22 @@ object NotificationHelper {
             content = Content(
                 title = title,
                 description = description,
-                imageUrl = "http://k.kakaocdn.net/dn/Q2iNx/btqgeRgV54P/VLj1NbrLccVpafpBkMzyVi/kakaolink40_original.png", // 기본 아이콘 예시
+                imageUrl = "http://k.kakaocdn.net/dn/Q2iNx/btqgeRgV54P/VLj1NbrLccVpafpBkMzyVi/kakaolink40_original.png",
                 link = Link(webUrl = "https://www.gbis.go.kr", mobileWebUrl = "https://www.gbis.go.kr")
             )
         )
 
-        if (ShareClient.instance.isKakaoTalkSharingAvailable(context)) {
-            ShareClient.instance.shareDefault(context, defaultFeed) { sharingResult, error ->
+        // TalkApiClient.instance를 사용하여 "나에게 보내기" 호출
+        try {
+            TalkApiClient.instance.sendDefaultMemo(defaultFeed) { error: Throwable? ->
                 if (error != null) {
-                    Log.e("KakaoShare", "실패: $error")
-                } else if (sharingResult != null) {
-                    context.startActivity(sharingResult.intent)
+                    Log.e("KakaoTalk", "나에게 보내기 실패: ${error.message}")
+                } else {
+                    Log.i("KakaoTalk", "나에게 보내기 성공")
                 }
             }
+        } catch (e: Exception) {
+            Log.e("KakaoTalk", "TalkApiClient 호출 불가: ${e.message}")
         }
     }
 

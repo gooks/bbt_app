@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -78,7 +80,11 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
         onDismissRequest = { viewModel.resetRideForm(); onDismiss() },
         title = { Text(if (isEdit) "알림 수정" else "이동 알림 추가") },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()) // 스크롤 추가하여 깨짐 방지
+            ) {
                 if (viewModel.rideSelectedBus.value == null) {
                     OutlinedTextField(
                         value = viewModel.rideBusSearchQuery.value,
@@ -88,89 +94,108 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                         trailingIcon = { IconButton(onClick = { viewModel.searchBusForRide() }) { Icon(Icons.Default.Search, null) } }
                     )
                     if (viewModel.isLoading.value) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                        items(viewModel.rideBusSearchResult) { bus ->
-                            ListItem(
-                                headlineContent = { Text("${bus.name} (${bus.type})") },
-                                supportingContent = { Text(bus.region) },
-                                modifier = Modifier.clickable { viewModel.selectBusForRide(bus) }
-                            )
-                        }
+                    
+                    // 내부 LazyColumn 대신 Column + forEach로 변경 (중첩 스크롤 이슈 방지)
+                    viewModel.rideBusSearchResult.forEach { bus ->
+                        ListItem(
+                            headlineContent = { Text("${bus.name} (${bus.type})") },
+                            supportingContent = { Text(bus.region) },
+                            modifier = Modifier.clickable { viewModel.selectBusForRide(bus) }
+                        )
                     }
                 } else {
-                    Text("선택된 버스: ${viewModel.rideSelectedBus.value!!.name}번", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    TextButton(onClick = { viewModel.rideSelectedBus.value = null }) { Text("다시 선택") }
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    Text("하차 정류장 지정:", style = MaterialTheme.typography.labelMedium)
-                    LazyColumn(modifier = Modifier.height(150.dp)) {
-                        items(viewModel.rideRouteStations) { station ->
-                            val isSelected = viewModel.rideSelectedDestination.value?.id == station.id
-                            Text(
-                                text = "${station.seq}. ${station.name}",
-                                modifier = Modifier.fillMaxWidth().clickable { viewModel.rideSelectedDestination.value = station }.background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent).padding(12.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("선택된 버스: ", style = MaterialTheme.typography.bodyMedium)
+                        Text("${viewModel.rideSelectedBus.value!!.name}번", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = { viewModel.rideSelectedBus.value = null }) { Text("변경") }
                     }
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    Text("실시간 정보 공유 (승차/하차 시)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
                     
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        Icon(Icons.Default.Notifications, null, tint = Color(0xFFFEE500), modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("카카오톡 공유 사용", modifier = Modifier.weight(1f))
-                        Switch(checked = viewModel.rideShareKakao.value, onCheckedChange = { viewModel.rideShareKakao.value = it })
-                    }
-                    if (viewModel.rideShareKakao.value) {
-                        OutlinedTextField(
-                            value = viewModel.rideShareKakaoTarget.value,
-                            onValueChange = { viewModel.rideShareKakaoTarget.value = it },
-                            label = { Text("공유 대상 (누구에게 보낼까요?)") },
-                            placeholder = { Text("예: 엄마, 선생님") },
-                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp),
-                            singleLine = true
-                        )
-                        
-                        Text("공유 시점 선택:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 28.dp, top = 8.dp))
-                        Row(modifier = Modifier.padding(start = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = viewModel.rideShareType.value == "REALTIME",
-                                onClick = { viewModel.rideShareType.value = "REALTIME" }
-                            )
-                            Text("실시간 (승/하차 시 즉시)", fontSize = 12.sp, modifier = Modifier.clickable { viewModel.rideShareType.value = "REALTIME" })
-                            Spacer(modifier = Modifier.width(8.dp))
-                            RadioButton(
-                                selected = viewModel.rideShareType.value == "HISTORY",
-                                onClick = { viewModel.rideShareType.value = "HISTORY" }
-                            )
-                            Text("이력공유 (하차 후 요약)", fontSize = 12.sp, modifier = Modifier.clickable { viewModel.rideShareType.value = "HISTORY" })
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Text("하차 정류장 선택:", style = MaterialTheme.typography.labelLarge)
+                    
+                    // 정류장 목록을 카드 형태의 리스트로 표시 (높이 제한)
+                    Surface(
+                        modifier = Modifier.heightIn(max = 200.dp).fillMaxWidth(),
+                        tonalElevation = 1.dp,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                            viewModel.rideRouteStations.forEach { station ->
+                                val isSelected = viewModel.rideSelectedDestination.value?.id == station.id
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.rideSelectedDestination.value = station }
+                                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${station.seq}. ${station.name}",
+                                        modifier = Modifier.weight(1f),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    if (isSelected) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                }
+                            }
                         }
-                        
-                        OutlinedTextField(
-                            value = viewModel.rideShareMemo.value,
-                            onValueChange = { viewModel.rideShareMemo.value = it },
-                            label = { Text("메모 (선택사항)") },
-                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp, top = 4.dp),
-                            singleLine = true
-                        )
-                        Text("* 승/하차 감지 시 카톡 친구 선택 창이 나타납니다.", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(start = 28.dp, top = 4.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = viewModel.rideTempEmail.value,
-                        onValueChange = { viewModel.rideTempEmail.value = it },
-                        label = { Text("자동 공유 이메일 주소") },
-                        placeholder = { Text("example@email.com") },
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = { IconButton(onClick = { viewModel.addShareEmail() }) { Icon(Icons.Default.Add, null) } }
-                    )
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        viewModel.rideShareEmails.forEach { email ->
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text("알림 및 공유 설정", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    
+                    // 카카오톡 설정 섹션 (나에게 자동 알림)
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4))
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(email, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.removeShareEmail(email) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Notifications, null, tint = Color(0xFFFBC02D), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("카카오톡 나에게 자동 알림", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Switch(checked = viewModel.rideShareKakao.value, onCheckedChange = { viewModel.rideShareKakao.value = it })
+                            }
+                            
+                            if (viewModel.rideShareKakao.value) {
+                                Text(
+                                    "✨ 승/하차 시 [현재 정보]와 함께 [오늘의 전체 주행 기록]을\n   본인의 카톡으로 자동 전송합니다.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF795548),
+                                    lineHeight = 16.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // 이메일 설정 섹션 (자동 전송 강조)
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("📧 이메일 자동 알림 (백그라운드 전송)", style = MaterialTheme.typography.labelLarge)
+                            OutlinedTextField(
+                                value = viewModel.rideTempEmail.value,
+                                onValueChange = { viewModel.rideTempEmail.value = it },
+                                label = { Text("수신 이메일 주소") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                trailingIcon = { IconButton(onClick = { viewModel.addShareEmail() }) { Icon(Icons.Default.Add, null) } },
+                                singleLine = true
+                            )
+                            
+                            viewModel.rideShareEmails.forEach { email ->
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                                    Icon(Icons.Default.Email, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(email, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { viewModel.removeShareEmail(email) }, modifier = Modifier.size(20.dp)) {
+                                        Icon(Icons.Default.Close, null, tint = Color.Red, modifier = Modifier.size(14.dp))
+                                    }
                                 }
                             }
                         }

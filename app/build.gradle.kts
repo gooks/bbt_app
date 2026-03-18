@@ -13,8 +13,8 @@ android {
         applicationId = "com.czt.bbt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.2.3_01"
+        versionCode = 5
+        versionName = "0.3.1_01"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -98,8 +98,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.0.1")
     
     // Kakao SDK
-    implementation("com.kakao.sdk:v2-share:2.19.0")
-    implementation("com.kakao.sdk:v2-user:2.19.0")
+    implementation("com.kakao.sdk:v2-all:2.19.0")
     
     // Testing
     testImplementation("junit:junit:4.13.2")

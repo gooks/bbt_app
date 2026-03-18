@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">버스알림</string>
+    <string name="shortcut_ride_short">이동알림 시작</string>
+    <string name="shortcut_ride_long">버스이동알림 시작하기</string>
+    <string name="shortcut_arrival_short">도착알림 시작</string>
+    <string name="shortcut_arrival_long">버스도착알림 시작하기</string>
 </resources>

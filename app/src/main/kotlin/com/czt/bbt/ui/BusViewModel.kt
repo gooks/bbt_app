@@ -213,6 +213,12 @@ class BusViewModel @Inject constructor(
 
     fun removeShareEmail(email: String) = rideShareEmails.remove(email)
 
+    fun selectKakaoTarget() {
+        // 실제 구현 시에는 Kakao SDK의 Picker API 등을 호출
+        // 여기서는 사용자에게 가이드와 함께 별칭 입력을 유도하는 메시지 출력
+        errorMessage.value = "전송 시점에 카카오톡에서 대상을 선택하게 됩니다. 여기서는 관리용 별칭만 입력해 주세요."
+    }
+
     fun saveRideAlert() {
         val bus = rideSelectedBus.value ?: return
         val dest = rideSelectedDestination.value ?: return
