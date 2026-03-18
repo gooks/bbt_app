@@ -26,7 +26,9 @@ object NotificationHelper {
         try {
             TalkApiClient.instance.sendDefaultMemo(defaultFeed) { error: Throwable? ->
                 if (error != null) {
-                    Log.e("KakaoTalk", "나에게 보내기 실패: ${error.message}")
+                    val errorMsg = if (error.message?.contains("tokens don't exist") == true) 
+                        "로그인이 필요합니다. 앱 설정에서 카카오 로그인을 해주세요." else error.message
+                    Log.e("KakaoTalk", "나에게 보내기 실패: $errorMsg")
                 } else {
                     Log.i("KakaoTalk", "나에게 보내기 성공")
                 }

@@ -219,6 +219,23 @@ class BusViewModel @Inject constructor(
         errorMessage.value = "전송 시점에 카카오톡에서 대상을 선택하게 됩니다. 여기서는 관리용 별칭만 입력해 주세요."
     }
 
+    fun loginWithKakao(context: Context) {
+        val callback: (com.kakao.sdk.auth.model.OAuthToken?, Throwable?) -> Unit = { token, error ->
+            if (error != null) {
+                errorMessage.value = "카카오 로그인 실패: ${error.message}"
+            } else if (token != null) {
+                // 로그인 성공 시 정보 업데이트
+                viewModelScope.launch { repository.logSystem("KAKAO_LOGIN", "카카오 로그인 성공") }
+            }
+        }
+
+        if (com.kakao.sdk.user.UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
+            com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoTalk(context, callback = callback)
+        } else {
+            com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
+        }
+    }
+
     fun saveRideAlert() {
         val bus = rideSelectedBus.value ?: return
         val dest = rideSelectedDestination.value ?: return

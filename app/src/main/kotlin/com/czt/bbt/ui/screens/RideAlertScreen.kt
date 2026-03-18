@@ -151,13 +151,23 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4))
                     ) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         Column(modifier = Modifier.padding(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Notifications, null, tint = Color(0xFFFBC02D), modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("카카오톡 나에게 자동 알림", fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.weight(1f))
-                                Switch(checked = viewModel.rideShareKakao.value, onCheckedChange = { viewModel.rideShareKakao.value = it })
+                                Switch(
+                                    checked = viewModel.rideShareKakao.value, 
+                                    onCheckedChange = { 
+                                        viewModel.rideShareKakao.value = it 
+                                        if (it) {
+                                            // 켜는 시점에 로그인 확인 유도 (간접)
+                                            viewModel.errorMessage.value = "자동 알림을 위해 카카오 로그인이 필요합니다."
+                                        }
+                                    }
+                                )
                             }
                             
                             if (viewModel.rideShareKakao.value) {
@@ -166,6 +176,24 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                                     fontSize = 11.sp,
                                     color = Color(0xFF795548),
                                     lineHeight = 16.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                                
+                                Button(
+                                    onClick = { viewModel.loginWithKakao(context) },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE500), contentColor = Color.Black),
+                                    shape = MaterialTheme.shapes.small
+                                ) {
+                                    Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("카카오 로그인 및 권한 허용", fontSize = 12.sp)
+                                }
+                                
+                                Text(
+                                    "* 전송 실패 시 '로그인' 버튼을 다시 눌러주세요.",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
