@@ -104,6 +104,11 @@ class BusViewModel @Inject constructor(
         viewModelScope.launch {
             BusAlertState.activeIdsFlow.collect { updateArrivalLiveStatusIds(it) }
         }
+        viewModelScope.launch {
+            BusAlertState.apiUsageFlow.collect { map ->
+                map.forEach { (tag, count) -> apiUsage[tag] = count }
+            }
+        }
     }
 
     fun updateArrivalLiveStatusIds(ids: List<Long>) {
@@ -126,8 +131,9 @@ class BusViewModel @Inject constructor(
     fun loadApiUsage() {
         val usagePrefs = context.getSharedPreferences("api_usage_prefs", Context.MODE_PRIVATE)
         val tags = listOf("노선검색", "위치조회", "주변정류소", "경유정류소", "정류소검색", "경유노선조회", "도착정보목록", "도착정보항목")
-        apiUsage.clear()
-        tags.forEach { tag -> apiUsage[tag] = usagePrefs.getInt(tag, 1000) }
+        val initialMap = mutableMapOf<String, Int>()
+        tags.forEach { tag -> initialMap[tag] = usagePrefs.getInt(tag, 1000) }
+        BusAlertState.apiUsageFlow.value = initialMap
     }
 
     private fun loadStateFromPrefs() {

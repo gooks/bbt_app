@@ -13,8 +13,8 @@ android {
         applicationId = "com.czt.bbt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.3.2_01"
+        versionCode = 7
+        versionName = "0.3.3_01"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
