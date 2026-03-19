@@ -252,7 +252,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     if (item != null && p1 > 0) {
                         val stateStr = when(item.stateCd1.toString()) { "0" -> "지나 교차로 통과"; "1" -> "정류소 도착"; "2" -> "정류소 출발"; else -> "지나 운행 중" }
                         val mins = p1 / 60; val secs = p1 % 60; val timeStr = if (mins > 0) "${mins}분 ${secs}초" else "${secs}초"
-                        displayMessages[rId] = "[$busName/${item.plateNo1}] $timeStr 후 도착."
+                        displayMessages[rId] = "[$busName] $timeStr 후 도착."
                         detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.stationNm1} $stateStr"
                         results.add(Triple(busName, rId, p1))
                     } else {
