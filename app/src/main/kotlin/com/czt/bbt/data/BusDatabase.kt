@@ -68,7 +68,7 @@ interface BusDao {
 
 @Database(
     entities = [RideAlert::class, ArrivalAlert::class, RideHistory::class, SystemLog::class, CachedRouteStation::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

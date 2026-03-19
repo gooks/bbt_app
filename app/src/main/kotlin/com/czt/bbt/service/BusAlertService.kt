@@ -323,8 +323,8 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     currentBusPlate = "전세 (GPS 추적)"
                     updateNotification("승차 확인! [전세 버스]")
                 }
-                
-                repository.insertRideHistory(RideHistory(date = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(boardingTime)), boardingTime = boardingTime, boardingStationName = boardingStationName ?: "알 수 없음", busNumber = alert.busNumber, plateNumber = currentBusPlate, alightStationName = alert.destinationStationName))
+
+                repository.insertRideHistory(RideHistory(date = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(boardingTime)), boardingTime = boardingTime, boardingStationName = boardingStationName ?: "  ", busNumber = alert.busNumber, plateNumber = currentBusPlate, alightStationName = alert.destinationStationName, estimatedMinutes = estMin))
                 shareStatus("승차", alert.busNumber, currentBusPlate ?: "확인 불가", boardingTime, boardingStationName ?: "", extraInfo = "도착예상: ${SimpleDateFormat("HH:mm").format(Date(boardingTime + estMin * 60000L))} (${estMin}분 소요 예상)")
             } catch (e: Exception) { }
         }
@@ -353,11 +353,17 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             if (distToDest[0] < 150) { handleAlight(); return }
             serviceScope.launch {
                 try {
-                    var tStr = "약 ${stopsRemaining * 2}분"
+                    var estimatedTotalMin = stopsRemaining * 2
+                    var tStr = " ${stopsRemaining * 2}"
                     if (currentBusPlate != null && !currentBusPlate!!.contains("GPS")) {
                         val arrRes = repository.getBusArrivalListV2(alert.destinationStationId)
                         val match = arrRes.response.msgBody?.busArrivalList?.find { it.routeId.toIntSafe().toString() == alert.busRouteId && it.plateNo1 == currentBusPlate }
-                        if (match != null && match.predictTimeSec1.toIntSafe() > 0) { val s = match.predictTimeSec1.toIntSafe(); tStr = "약 ${s/60}분 ${s%60}초" }
+                        if (match != null && match.predictTimeSec1.toIntSafe() > 0) { val s = match.predictTimeSec1.toIntSafe(); estimatedTotalMin = s / 60; tStr = " ${s/60} ${s%60}" }
+                    }
+                    val histories = repository.getAllRideHistories().first()
+                    val currentHistory = histories.maxByOrNull { it.boardingTime }
+                    if (currentHistory != null && currentHistory.alightTime == null) {
+                        repository.updateRideHistory(currentHistory.copy(estimatedMinutes = estimatedTotalMin))
                     }
                     val next = if (lastStationIndex + 1 < stations.size) stations[lastStationIndex + 1].stationName else "종점"
                     updateNotification("다음: $next | $tStr (${stopsRemaining}전) | ${String.format("%.1f", distToDest[0]/1000.0)}km")
