@@ -112,15 +112,6 @@ fun ApiUsageScreen(viewModel: BusViewModel, onBack: () -> Unit) {
                     }
                 }
             }
-            item {
-                Button(
-                    onClick = { viewModel.loadApiUsage() },
-                    modifier = Modifier.padding(top = 16.dp).fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Refresh, null)
-                    Text(" 현황 새로고침")
-                }
-            }
         }
     }
 }
