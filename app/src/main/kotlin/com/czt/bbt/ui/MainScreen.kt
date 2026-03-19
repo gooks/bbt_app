@@ -19,7 +19,7 @@ fun BusAppScreen(
     selectedVoice: MutableState<Voice?>
 ) {
     var tabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("이동이력", "버스이동", "버스도착", "🚧")
+    val tabs = listOf("도착현황", "버스도착", "이동이력", "버스이동", "🚧")
 
     Scaffold(
         topBar = {
@@ -40,10 +40,11 @@ fun BusAppScreen(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             when (tabIndex) {
-                0 -> HistoryScreen(viewModel)
-                1 -> RideAlertScreen(viewModel)
-                2 -> ArrivalAlertScreen(viewModel)
-                3 -> LabScreen(viewModel, tts, wordRange, availableVoices, selectedVoice)
+                0 -> ArrivalStatusScreen(viewModel)
+                1 -> ArrivalAlertScreen(viewModel)
+                2 -> HistoryScreen(viewModel)
+                3 -> RideAlertScreen(viewModel)
+                4 -> LabScreen(viewModel, tts, wordRange, availableVoices, selectedVoice)
             }
         }
     }

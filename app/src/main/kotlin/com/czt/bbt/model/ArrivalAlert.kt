@@ -9,6 +9,7 @@ data class ArrivalAlert(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val stationName: String,
     val stationId: String,
+    val stationNo: String = "", // 정류소 번호 추가
     @TypeConverters(Converters::class)
     val targetBusNumbers: List<String>, // RouteIDs
     @TypeConverters(Converters::class)

@@ -18,6 +18,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -54,8 +56,8 @@ class BusViewModel @Inject constructor(
     var editingRideAlert = mutableStateOf<RideAlert?>(null)
     var rideShareEmails = mutableStateListOf<String>()
     var rideShareKakao = mutableStateOf(false)
-    var rideShareType = mutableStateOf("REALTIME") // "REALTIME" 또는 "HISTORY"
-    var rideShareKakaoTarget = mutableStateOf("") // 공유 대상
+    var rideShareType = mutableStateOf("REALTIME")
+    var rideShareKakaoTarget = mutableStateOf("")
     var rideShareMemo = mutableStateOf("")
     var rideTempEmail = mutableStateOf("")
 
@@ -78,25 +80,59 @@ class BusViewModel @Inject constructor(
     var activeRideAlertId = mutableStateOf<Long?>(null)
     var activeArrivalIds = mutableStateListOf<Long>()
 
+    // 실시간 도착 현황 상태 (BusAlertState 구독)
+    private val _arrivalLiveStatus = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val arrivalLiveStatus = _arrivalLiveStatus.asStateFlow()
+
+    private val _arrivalLiveStatusDetail = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val arrivalLiveStatusDetail = _arrivalLiveStatusDetail.asStateFlow()
+
+    private val _arrivalLiveStatusIds = MutableStateFlow<List<Long>>(emptyList())
+    val arrivalLiveStatusIds = _arrivalLiveStatusIds.asStateFlow()
+
     init {
         loadStateFromPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
         loadApiUsage()
+        
+        viewModelScope.launch {
+            BusAlertState.liveStatusFlow.collect { _arrivalLiveStatus.value = it }
+        }
+        viewModelScope.launch {
+            BusAlertState.liveStatusDetailFlow.collect { _arrivalLiveStatusDetail.value = it }
+        }
+        viewModelScope.launch {
+            BusAlertState.activeIdsFlow.collect { updateArrivalLiveStatusIds(it) }
+        }
+    }
+
+    fun updateArrivalLiveStatusIds(ids: List<Long>) {
+        val currentOrder = _arrivalLiveStatusIds.value
+        val newIds = ids.toSet()
+        val keptOrder = currentOrder.filter { it in newIds }
+        val addedIds = ids.filter { it !in currentOrder.toSet() }
+        _arrivalLiveStatusIds.value = keptOrder + addedIds
+    }
+
+    fun moveArrivalItem(fromIndex: Int, toIndex: Int) {
+        val list = _arrivalLiveStatusIds.value.toMutableList()
+        if (fromIndex in list.indices && toIndex in list.indices) {
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+            _arrivalLiveStatusIds.value = list
+        }
     }
 
     fun loadApiUsage() {
         val usagePrefs = context.getSharedPreferences("api_usage_prefs", Context.MODE_PRIVATE)
         val tags = listOf("노선검색", "위치조회", "주변정류소", "경유정류소", "정류소검색", "경유노선조회", "도착정보목록", "도착정보항목")
         apiUsage.clear()
-        tags.forEach { tag ->
-            apiUsage[tag] = usagePrefs.getInt(tag, 1000)
-        }
+        tags.forEach { tag -> apiUsage[tag] = usagePrefs.getInt(tag, 1000) }
     }
 
     private fun loadStateFromPrefs() {
         val rideId = prefs.getLong("active_ride_id", -1L)
         activeRideAlertId.value = if (rideId != -1L) rideId else null
-        
         val arrivalIdsStr = prefs.getString("active_arrival_ids", "") ?: ""
         activeArrivalIds.clear()
         if (arrivalIdsStr.isNotEmpty()) {
@@ -110,10 +146,7 @@ class BusViewModel @Inject constructor(
             putString("active_arrival_ids", activeArrivalIds.joinToString(","))
             commit()
         }
-        // 위젯 갱신 신호 발송
-        val widgetIntent = Intent("com.czt.bbt.ACTION_WIDGET_REFRESH").apply {
-            setPackage(context.packageName)
-        }
+        val widgetIntent = Intent("com.czt.bbt.ACTION_WIDGET_REFRESH").apply { setPackage(context.packageName) }
         context.sendBroadcast(widgetIntent)
     }
 
@@ -133,8 +166,7 @@ class BusViewModel @Inject constructor(
     data class GBusStationAroundItem(val stationId: Long, val stationName: Any?, val mobileNo: Any?, val regionName: String?, val distance: Int)
 
     private fun formatRouteName(name: Any?): String {
-        if (name == null) return "번호없음"
-        val str = name.toString()
+        val str = name?.toString() ?: return "번호없음"
         return if (str.endsWith(".0")) str.substring(0, str.length - 2) else str
     }
 
@@ -144,30 +176,20 @@ class BusViewModel @Inject constructor(
         return try { 
             if (json.startsWith("[")) { gson.fromJson(json, object : TypeToken<List<T>>() {}.type) } 
             else { listOf(gson.fromJson(json, T::class.java)) }
-        } catch (e: Exception) { 
-            android.util.Log.e("PARSE_ERROR", "파싱 실패: ${e.message}")
-            emptyList() 
-        }
+        } catch (e: Exception) { emptyList() }
     }
 
     fun searchBusForRide() {
-        errorMessage.value = null
-        rideBusSearchResult.clear()
-        isLoading.value = true
+        errorMessage.value = null; rideBusSearchResult.clear(); isLoading.value = true
         viewModelScope.launch {
             try {
                 val res = repository.searchBusRoute(rideBusSearchQuery.value)
                 val list = parseList<GBusRouteItem>(res.response.msgBody?.busRouteList)
                 if (list.isNotEmpty()) {
-                    rideBusSearchResult.addAll(list.map { 
-                        BusInfo(formatRouteName(it.routeName), it.routeId.toString(), it.routeTypeName ?: "일반", it.regionName ?: "") 
-                    })
+                    rideBusSearchResult.addAll(list.map { BusInfo(formatRouteName(it.routeName), it.routeId.toString(), it.routeTypeName ?: "일반", it.regionName ?: "") })
                 } else { errorMessage.value = "검색 결과가 없습니다." }
             } catch (e: Exception) { errorMessage.value = "버스 검색 오류" }
-            finally { 
-                isLoading.value = false
-                loadApiUsage()
-            }
+            finally { isLoading.value = false; loadApiUsage() }
         }
     }
 
@@ -181,9 +203,7 @@ class BusViewModel @Inject constructor(
             try {
                 val stationRes = repository.getBusRouteStations(routeId)
                 rideRouteStations.clear()
-                rideRouteStations.addAll(stationRes.map { 
-                    StationInfo(it.stationName, it.stationId, it.mobileNo ?: "", it.stationSeq)
-                })
+                rideRouteStations.addAll(stationRes.map { StationInfo(it.stationName, it.stationId, it.mobileNo ?: "", it.stationSeq) })
             } catch (e: Exception) { errorMessage.value = "정류소 목록 조회 오류" }
             finally { loadApiUsage() }
         }
@@ -194,37 +214,24 @@ class BusViewModel @Inject constructor(
         rideBusSearchQuery.value = alert.busNumber
         rideSelectedBus.value = BusInfo(alert.busNumber, alert.busRouteId, "", "")
         rideSelectedDestination.value = StationInfo(alert.destinationStationName, alert.destinationStationId, "", alert.destinationStationSeq)
-        rideShareEmails.clear()
-        rideShareEmails.addAll(alert.shareEmails)
-        rideShareKakao.value = alert.shareKakao
-        rideShareType.value = alert.shareType
-        rideShareKakaoTarget.value = alert.shareKakaoTarget
-        rideShareMemo.value = alert.shareMemo
+        rideShareEmails.clear(); rideShareEmails.addAll(alert.shareEmails)
+        rideShareKakao.value = alert.shareKakao; rideShareType.value = alert.shareType
+        rideShareKakaoTarget.value = alert.shareKakaoTarget; rideShareMemo.value = alert.shareMemo
         loadRouteStations(alert.busRouteId)
     }
 
     fun addShareEmail() {
         val email = rideTempEmail.value.trim()
-        if (email.isNotEmpty() && email.contains("@") && !rideShareEmails.contains(email)) {
-            rideShareEmails.add(email)
-            rideTempEmail.value = ""
-        }
+        if (email.isNotEmpty() && email.contains("@") && !rideShareEmails.contains(email)) { rideShareEmails.add(email); rideTempEmail.value = "" }
     }
 
     fun removeShareEmail(email: String) = rideShareEmails.remove(email)
-
-    fun selectKakaoTarget() {
-        // 실제 구현 시에는 Kakao SDK의 Picker API 등을 호출
-        // 여기서는 사용자에게 가이드와 함께 별칭 입력을 유도하는 메시지 출력
-        errorMessage.value = "전송 시점에 카카오톡에서 대상을 선택하게 됩니다. 여기서는 관리용 별칭만 입력해 주세요."
-    }
 
     fun loginWithKakao(context: Context) {
         val callback: (com.kakao.sdk.auth.model.OAuthToken?, Throwable?) -> Unit = { token, error ->
             if (error != null) {
                 errorMessage.value = "카카오 로그인 실패: ${error.message}"
             } else if (token != null) {
-                // 로그인 성공 시 정보 업데이트
                 viewModelScope.launch { repository.logSystem("KAKAO_LOGIN", "카카오 로그인 성공") }
             }
         }
@@ -237,88 +244,49 @@ class BusViewModel @Inject constructor(
     }
 
     fun saveRideAlert() {
-        val bus = rideSelectedBus.value ?: return
-        val dest = rideSelectedDestination.value ?: return
+        val bus = rideSelectedBus.value ?: return; val dest = rideSelectedDestination.value ?: return
         viewModelScope.launch {
-            val alert = RideAlert(
-                id = editingRideAlert.value?.id ?: 0,
-                busNumber = bus.name,
-                busRouteId = bus.routeId,
-                destinationStationName = dest.name,
-                destinationStationId = dest.id,
-                destinationStationSeq = dest.seq,
-                shareEmails = rideShareEmails.toList(),
-                shareKakao = rideShareKakao.value,
-                shareType = rideShareType.value,
-                shareKakaoTarget = rideShareKakaoTarget.value,
-                shareMemo = rideShareMemo.value
-            )
+            val alert = RideAlert(id = editingRideAlert.value?.id ?: 0, busNumber = bus.name, busRouteId = bus.routeId, destinationStationName = dest.name, destinationStationId = dest.id, destinationStationSeq = dest.seq, shareEmails = rideShareEmails.toList(), shareKakao = rideShareKakao.value, shareType = rideShareType.value, shareKakaoTarget = rideShareKakaoTarget.value, shareMemo = rideShareMemo.value)
             if (editingRideAlert.value == null) repository.insertRideAlert(alert) else repository.updateRideAlert(alert)
             resetRideForm()
         }
     }
 
     fun resetRideForm() {
-        rideSelectedBus.value = null
-        rideBusSearchResult.clear()
-        rideRouteStations.clear()
-        rideBusSearchQuery.value = ""
-        rideSelectedDestination.value = null
-        editingRideAlert.value = null
-        rideShareEmails.clear()
-        rideShareKakao.value = false
-        rideShareType.value = "REALTIME"
-        rideShareKakaoTarget.value = ""
-        rideShareMemo.value = ""
-        rideTempEmail.value = ""
+        rideSelectedBus.value = null; rideBusSearchResult.clear(); rideRouteStations.clear(); rideBusSearchQuery.value = ""
+        rideSelectedDestination.value = null; editingRideAlert.value = null; rideShareEmails.clear()
+        rideShareKakao.value = false; rideShareType.value = "REALTIME"; rideShareKakaoTarget.value = ""; rideShareMemo.value = ""; rideTempEmail.value = ""
     }
 
     fun searchStationForArrival() {
-        errorMessage.value = null
-        arrivalStationSearchResult.clear()
-        isLoading.value = true
+        errorMessage.value = null; arrivalStationSearchResult.clear(); isLoading.value = true
         viewModelScope.launch {
             try {
                 val res = repository.searchStation(arrivalStationSearchQuery.value)
                 val list = parseList<GBusStationItem>(res.response.msgBody?.busStationList)
                 if (list.isNotEmpty()) {
-                    arrivalStationSearchResult.addAll(list.map { 
-                        StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") 
-                    })
+                    arrivalStationSearchResult.addAll(list.map { StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") })
                 } else { errorMessage.value = "검색 결과가 없습니다." }
             } catch (e: Exception) { errorMessage.value = "정류소 검색 오류" }
-            finally { 
-                isLoading.value = false
-                loadApiUsage()
-            }
+            finally { isLoading.value = false; loadApiUsage() }
         }
     }
 
     @android.annotation.SuppressLint("MissingPermission")
     suspend fun searchNearbyStationsForArrival() {
-        errorMessage.value = null
-        arrivalStationSearchResult.clear()
-        isLoading.value = true
+        errorMessage.value = null; arrivalStationSearchResult.clear(); isLoading.value = true
         try {
             val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
             if (location != null) {
                 val res = repository.getBusStationAroundList(location.longitude, location.latitude)
                 val list = parseList<GBusStationAroundItem>(res.response.msgBody?.busStationAroundList)
-                arrivalStationSearchResult.addAll(list.map { 
-                    StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") 
-                })
+                arrivalStationSearchResult.addAll(list.map { StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") })
             } else { errorMessage.value = "위치 정보를 가져올 수 없습니다." }
         } catch (e: Exception) { errorMessage.value = "주변 검색 오류" }
-        finally { 
-            isLoading.value = false
-            loadApiUsage()
-        }
+        finally { isLoading.value = false; loadApiUsage() }
     }
 
-    fun selectStationForArrival(station: StationInfo) {
-        arrivalSelectedStation.value = station
-        loadBusesAtStation(station.id)
-    }
+    fun selectStationForArrival(station: StationInfo) { arrivalSelectedStation.value = station; loadBusesAtStation(station.id) }
 
     private fun loadBusesAtStation(stationId: String) {
         viewModelScope.launch {
@@ -326,22 +294,17 @@ class BusViewModel @Inject constructor(
                 val routeRes = repository.getBusStationViaRouteList(stationId)
                 val routes = parseList<GBusStationViaRouteItem>(routeRes.response.msgBody?.busRouteList)
                 arrivalBusList.clear()
-                arrivalBusList.addAll(routes.map { 
-                    BusInfo(formatRouteName(it.routeName), it.routeId.toString(), it.routeTypeName ?: "일반", it.regionName ?: "") 
-                })
+                arrivalBusList.addAll(routes.map { BusInfo(formatRouteName(it.routeName), it.routeId.toString(), it.routeTypeName ?: "일반", it.regionName ?: "") })
             } catch (e: Exception) { errorMessage.value = "경유 노선 조회 오류" }
             finally { loadApiUsage() }
         }
     }
 
     fun setEditArrivalAlert(alert: ArrivalAlert) {
-        editingArrivalAlert.value = alert
-        arrivalStationSearchQuery.value = alert.stationName
-        arrivalSelectedStation.value = StationInfo(alert.stationName, alert.stationId, "")
-        arrivalSelectedBuses.clear()
-        arrivalSelectedBuses.addAll(alert.targetBusNumbers)
-        arrivalSelectedBusNames.clear()
-        arrivalSelectedBusNames.addAll(alert.targetBusNames)
+        editingArrivalAlert.value = alert; arrivalStationSearchQuery.value = alert.stationName
+        arrivalSelectedStation.value = StationInfo(alert.stationName, alert.stationId, alert.stationNo)
+        arrivalSelectedBuses.clear(); arrivalSelectedBuses.addAll(alert.targetBusNumbers)
+        arrivalSelectedBusNames.clear(); arrivalSelectedBusNames.addAll(alert.targetBusNames)
         loadBusesAtStation(alert.stationId)
     }
 
@@ -349,90 +312,31 @@ class BusViewModel @Inject constructor(
         val station = arrivalSelectedStation.value ?: return
         if (arrivalSelectedBuses.isEmpty()) return
         viewModelScope.launch {
-            val alert = ArrivalAlert(
-                id = editingArrivalAlert.value?.id ?: 0,
-                stationName = station.name,
-                stationId = station.id,
-                targetBusNumbers = arrivalSelectedBuses.toList(),
-                targetBusNames = arrivalSelectedBusNames.toList()
-            )
+            val alert = ArrivalAlert(id = editingArrivalAlert.value?.id ?: 0, stationName = station.name, stationId = station.id, stationNo = station.no, targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList())
             if (editingArrivalAlert.value == null) repository.insertArrivalAlert(alert) else repository.updateArrivalAlert(alert)
             resetArrivalForm()
         }
     }
 
     fun resetArrivalForm() {
-        arrivalSelectedStation.value = null
-        arrivalStationSearchResult.clear()
-        arrivalBusList.clear()
-        arrivalStationSearchQuery.value = ""
-        arrivalSelectedBuses.clear()
-        arrivalSelectedBusNames.clear()
-        editingArrivalAlert.value = null
+        arrivalSelectedStation.value = null; arrivalStationSearchResult.clear(); arrivalBusList.clear(); arrivalStationSearchQuery.value = ""
+        arrivalSelectedBuses.clear(); arrivalSelectedBusNames.clear(); editingArrivalAlert.value = null
     }
 
     fun toggleArrivalBusSelection(bus: BusInfo) {
-        if (arrivalSelectedBuses.contains(bus.routeId)) {
-            arrivalSelectedBuses.remove(bus.routeId)
-            arrivalSelectedBusNames.remove(bus.name)
-        } else {
-            arrivalSelectedBuses.add(bus.routeId)
-            arrivalSelectedBusNames.add(bus.name)
-        }
+        if (arrivalSelectedBuses.contains(bus.routeId)) { arrivalSelectedBuses.remove(bus.routeId); arrivalSelectedBusNames.remove(bus.name) } 
+        else { arrivalSelectedBuses.add(bus.routeId); arrivalSelectedBusNames.add(bus.name) }
     }
 
-    fun startRideAlert(alert: RideAlert) {
-        activeRideAlertId.value = alert.id
-        saveState()
-        sendServiceAction(BusAlertService.ACTION_START_RIDE, alert.id)
-    }
-
-    fun startArrivalAlert(alert: ArrivalAlert) {
-        if (!activeArrivalIds.contains(alert.id)) { activeArrivalIds.add(alert.id) }
-        saveState()
-        sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, alert.id)
-    }
-
-    fun stopRideAlert() {
-        activeRideAlertId.value = null
-        saveState()
-        val intent = Intent(context, BusAlertService::class.java).apply {
-            action = BusAlertService.ACTION_STOP_RIDE
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
-    }
-
-    fun stopArrivalAlert(alertId: Long) {
-        activeArrivalIds.remove(alertId)
-        saveState()
-        val intent = Intent(context, BusAlertService::class.java).apply {
-            action = "ACTION_STOP_ALERT"
-            putExtra(BusAlertService.EXTRA_ALERT_ID, alertId)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
-    }
-
-    fun stopArrivalAll() {
-        activeArrivalIds.clear()
-        saveState()
-        val intent = Intent(context, BusAlertService::class.java).apply {
-            action = BusAlertService.ACTION_STOP_ARRIVAL_ALL
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
-    }
-
-    fun stopAllServices() {
-        activeRideAlertId.value = null
-        activeArrivalIds.clear()
-        saveState()
-        sendServiceAction(BusAlertService.ACTION_STOP)
-    }
+    fun startRideAlert(alert: RideAlert) { activeRideAlertId.value = alert.id; saveState(); sendServiceAction(BusAlertService.ACTION_START_RIDE, alert.id) }
+    fun startArrivalAlert(alert: ArrivalAlert) { if (!activeArrivalIds.contains(alert.id)) { activeArrivalIds.add(alert.id) }; saveState(); sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, alert.id) }
+    fun stopRideAlert() { activeRideAlertId.value = null; saveState(); sendServiceAction(BusAlertService.ACTION_STOP_RIDE) }
+    fun stopArrivalAlert(alertId: Long) { activeArrivalIds.remove(alertId); saveState(); sendServiceAction("ACTION_STOP_ALERT", alertId) }
+    fun stopArrivalAll() { activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP_ARRIVAL_ALL) }
+    fun stopAllServices() { activeRideAlertId.value = null; activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP) }
 
     private fun sendServiceAction(action: String, alertId: Long = -1) {
-        val intent = Intent(context, BusAlertService::class.java).apply {
-            this.action = action
-            if (alertId != -1L) putExtra(BusAlertService.EXTRA_ALERT_ID, alertId)
-        }
+        val intent = Intent(context, BusAlertService::class.java).apply { this.action = action; if (alertId != -1L) putExtra(BusAlertService.EXTRA_ALERT_ID, alertId) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
     }
 
