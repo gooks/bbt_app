@@ -63,12 +63,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private val activeArrivalAlerts = mutableMapOf<Long, ArrivalAlert>()
     private val routeStationsCache = mutableMapOf<String, List<CachedRouteStation>>()
 
-    // Arrival Notification State
-    private var lastAlertStops: Int = -1
     private val lastArrivalAlertStops = mutableMapOf<Long, Int>()
     private val lastAnnouncedRouteId = mutableMapOf<Long, String>()
 
-    // Ride Mode State
     private var boardingStationName: String? = null
     private var isBoardingDetected = false
     private var isAlightingDetected = false
@@ -78,7 +75,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private var lastLocation: Location? = null
     private var destStationIndex: Int = -1
     private var lastStationIndex: Int = -1
-    private var lastAdvancedCheckTime: Long = 0L
+    private var lastAlertStops: Int = -1
 
     companion object {
         const val TAG = "BusAlert"
@@ -138,8 +135,8 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START_RIDE -> { startRideMode(intent.getLongExtra(EXTRA_ALERT_ID, -1)) }
-            ACTION_START_ARRIVAL -> { startArrivalMode(intent.getLongExtra(EXTRA_ALERT_ID, -1)) }
+            ACTION_START_RIDE -> startRideMode(intent.getLongExtra(EXTRA_ALERT_ID, -1))
+            ACTION_START_ARRIVAL -> startArrivalMode(intent.getLongExtra(EXTRA_ALERT_ID, -1))
             ACTION_REFRESH -> {
                 serviceScope.launch {
                     if (mode == Mode.RIDE) { if (isBoardingDetected) checkRideStatus() else updateNotification("승차 확인 중...") }
@@ -147,7 +144,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
                 }
             }
-            ACTION_STOP_ALERT -> { stopIndividualAlert(intent.getLongExtra(EXTRA_ALERT_ID, -1)) }
+            ACTION_STOP_ALERT -> stopIndividualAlert(intent.getLongExtra(EXTRA_ALERT_ID, -1))
             ACTION_STOP_RIDE -> stopRideOnly()
             ACTION_STOP_ARRIVAL_ALL -> stopArrivalAll()
             ACTION_STOP -> handleManualStop()
@@ -160,39 +157,27 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         serviceScope.launch {
             val histories = repository.getAllRideHistories().first()
             val last = histories.maxByOrNull { it.boardingTime }
-            if (last != null && last.alightTime == null) { repository.deleteRideHistory(last) }
+            if (last != null && last.alightTime == null) repository.deleteRideHistory(last)
         }
         getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", -1L).commit()
         notifyWidgetUpdate(); if (activeArrivalJobs.isEmpty()) stopSelf()
     }
 
     private fun stopArrivalAll() {
-        activeArrivalJobs.keys.toList().forEach { id ->
-            activeArrivalJobs[id]?.cancel()
-            notificationManager.cancel(NOTIFICATION_ID + id.toInt())
-        }
+        activeArrivalJobs.keys.toList().forEach { id -> activeArrivalJobs[id]?.cancel(); notificationManager.cancel(NOTIFICATION_ID + id.toInt()) }
         activeArrivalJobs.clear(); activeArrivalAlerts.clear(); lastArrivalAlertStops.clear()
-        
-        BusAlertState.liveStatusFlow.value = emptyMap()
-        BusAlertState.liveStatusDetailFlow.value = emptyMap()
-        BusAlertState.activeIdsFlow.value = emptyList()
-
+        BusAlertState.liveStatusFlow.value = emptyMap(); BusAlertState.liveStatusDetailFlow.value = emptyMap(); BusAlertState.activeIdsFlow.value = emptyList()
         getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putString("active_arrival_ids", "").commit()
         notifyWidgetUpdate(); if (mode != Mode.RIDE) stopSelf()
     }
 
     private fun handleManualStop() {
         serviceScope.launch {
-            val histories = repository.getAllRideHistories().first()
-            val last = histories.maxByOrNull { it.boardingTime }
-            if (last != null && last.alightTime == null) { repository.deleteRideHistory(last) }
+            val histories = repository.getAllRideHistories().first(); val last = histories.maxByOrNull { it.boardingTime }
+            if (last != null && last.alightTime == null) repository.deleteRideHistory(last)
             getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", -1L).putString("active_arrival_ids", "").commit()
             lastAlertStops = -1; lastArrivalAlertStops.clear()
-            
-            BusAlertState.liveStatusFlow.value = emptyMap()
-            BusAlertState.liveStatusDetailFlow.value = emptyMap()
-            BusAlertState.activeIdsFlow.value = emptyList()
-
+            BusAlertState.liveStatusFlow.value = emptyMap(); BusAlertState.liveStatusDetailFlow.value = emptyMap(); BusAlertState.activeIdsFlow.value = emptyList()
             notifyWidgetUpdate(); stopSelf()
         }
     }
@@ -200,72 +185,53 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun stopIndividualAlert(alertId: Long) {
         activeArrivalJobs[alertId]?.cancel(); activeArrivalJobs.remove(alertId); activeArrivalAlerts.remove(alertId); lastArrivalAlertStops.remove(alertId)
         notificationManager.cancel(NOTIFICATION_ID + alertId.toInt())
-        
         BusAlertState.liveStatusFlow.value = BusAlertState.liveStatusFlow.value.toMutableMap().apply { remove(alertId) }
         BusAlertState.liveStatusDetailFlow.value = BusAlertState.liveStatusDetailFlow.value.toMutableMap().apply { remove(alertId) }
         BusAlertState.activeIdsFlow.value = activeArrivalAlerts.keys.toList()
-
         val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
         val newIds = (prefs.getString("active_arrival_ids", "") ?: "").split(",").filter { it != alertId.toString() && it.isNotEmpty() }.joinToString(",")
         prefs.edit().putString("active_arrival_ids", newIds).commit()
-        notifyWidgetUpdate(); if (activeArrivalJobs.isEmpty() && mode != Mode.RIDE) { stopSelf() }
+        notifyWidgetUpdate(); if (activeArrivalJobs.isEmpty() && mode != Mode.RIDE) stopSelf()
     }
 
     private fun startRideMode(alertId: Long) {
-        if (mode == Mode.RIDE) { sensorManager.unregisterListener(this) }
+        if (mode == Mode.RIDE) sensorManager.unregisterListener(this)
         mode = Mode.RIDE; isBoardingDetected = false; potentialBoardingTime = 0L; lastAlertStops = -1; lastStationIndex = -1
         getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", alertId).commit()
         startForeground(NOTIFICATION_ID, createNotification("버스 이동 알림 준비 중..."))
         startLocationUpdates(); notifyWidgetUpdate()
         serviceScope.launch {
-            val histories = repository.getAllRideHistories().first()
-            val last = histories.maxByOrNull { it.boardingTime }
-            if (last != null && last.alightTime == null) { repository.deleteRideHistory(last) }
-            
+            val histories = repository.getAllRideHistories().first(); val last = histories.maxByOrNull { it.boardingTime }
+            if (last != null && last.alightTime == null) repository.deleteRideHistory(last)
             try {
                 val alert = repository.getAllRideAlerts().first().find { it.id == alertId } ?: run { stopSelf(); return@launch }
-                activeRideAlert = alert
-                val stations = repository.getBusRouteStations(alert.busRouteId)
-                routeStationsCache[alert.busRouteId] = stations
+                activeRideAlert = alert; val stations = repository.getBusRouteStations(alert.busRouteId); routeStationsCache[alert.busRouteId] = stations
                 destStationIndex = stations.indexOfFirst { it.stationId == alert.destinationStationId }
-                var retries = 0
-                while (lastLocation == null && retries < 5) { delay(1000); retries++ }
+                var retries = 0; while (lastLocation == null && retries < 5) { delay(1000); retries++ }
                 lastLocation?.let { loc ->
                     val nearest = stations.minByOrNull { val r = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, it.y, it.x, r); r[0] }
-                    boardingStationName = nearest?.stationName
-                    updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}")
+                    boardingStationName = nearest?.stationName; updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}")
                     sensorManager.registerListener(this@BusAlertService, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
-                } ?: run { stopSelf() }
+                } ?: stopSelf()
             } catch (e: Exception) { stopSelf() }
         }
     }
 
     private fun checkBoardingStatusWithTimeout() {
         if (isBoardingDetected || potentialBoardingTime == 0L) return
-        val now = System.currentTimeMillis()
-        if (now - potentialBoardingTime > 3 * 60 * 1000) { revertToWaitingStatus(); return }
-        val loc = lastLocation ?: return; val routeId = activeRideAlert?.busRouteId ?: return
-        val stations = routeStationsCache[routeId] ?: return; val station = stations.find { it.stationName == boardingStationName } ?: return
+        val now = System.currentTimeMillis(); if (now - potentialBoardingTime > 3 * 60 * 1000) { revertToWaitingStatus(); return }
+        val loc = lastLocation ?: return; val routeId = activeRideAlert?.busRouteId ?: return; val stations = routeStationsCache[routeId] ?: return; val station = stations.find { it.stationName == boardingStationName } ?: return
         val dist = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, station.y, station.x, dist)
         if (dist[0] > 70) confirmBoarding()
     }
 
-    private fun revertToWaitingStatus() {
-        if (isBoardingDetected) return
-        potentialBoardingTime = 0L
-        updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}")
-        serviceScope.launch { repository.logSystem("RIDE_REVERT", "3분 경과 미이탈로 승차 대기 전환") }
-        sensorManager.unregisterListener(this)
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
-    }
+    private fun revertToWaitingStatus() { potentialBoardingTime = 0L; updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}"); sensorManager.unregisterListener(this); sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL) }
 
     private fun startArrivalMode(alertId: Long) {
         serviceScope.launch {
-            val alerts = repository.getAllArrivalAlerts().first()
-            val alert = alerts.find { it.id == alertId } ?: return@launch
+            val alerts = repository.getAllArrivalAlerts().first(); val alert = alerts.find { it.id == alertId } ?: return@launch
             activeArrivalAlerts[alertId] = alert
-            val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
-            val currentIds = prefs.getString("active_arrival_ids", "") ?: ""
+            val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE); val currentIds = prefs.getString("active_arrival_ids", "") ?: ""
             val idList = currentIds.split(",").filter { it.isNotEmpty() }.toMutableList()
             if (!idList.contains(alertId.toString())) { idList.add(alertId.toString()); prefs.edit().putString("active_arrival_ids", idList.joinToString(",")).commit() }
             updateArrivalNotification(alertId, "버스도착알림 : ${alert.stationName}", "도착 정보 확인 중...", "도착 정보 확인 중...")
@@ -278,21 +244,15 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private suspend fun checkArrivalStatus(alertId: Long): Long {
         val alert = activeArrivalAlerts[alertId] ?: return 300000L
         try {
-            val results = mutableListOf<Triple<String, String, Int>>()
-            val displayMessages = mutableMapOf<String, String>()
-            val detailMessages = mutableMapOf<String, String>()
-            val res = repository.getBusArrivalListV2(alert.stationId)
-            val arrivalList = res.response.msgBody?.busArrivalList ?: emptyList()
-            
+            val results = mutableListOf<Triple<String, String, Int>>(); val displayMessages = mutableMapOf<String, String>(); val detailMessages = mutableMapOf<String, String>()
+            val res = repository.getBusArrivalListV2(alert.stationId); val arrivalList = res.response.msgBody?.busArrivalList ?: emptyList()
             alert.targetBusNumbers.forEachIndexed { index, rId ->
                 try {
-                    val busName = alert.targetBusNames.getOrNull(index) ?: "버스"
-                    val item = arrivalList.find { it.routeId.toIntSafe().toString() == rId }
-                    val p1 = item?.predictTimeSec1.toIntSafe()
+                    val busName = alert.targetBusNames.getOrNull(index) ?: "버스"; val item = arrivalList.find { it.routeId.toIntSafe().toString() == rId }; val p1 = item?.predictTimeSec1.toIntSafe()
                     if (item != null && p1 > 0) {
                         val stateStr = when(item.stateCd1.toString()) { "0" -> "지나 교차로 통과"; "1" -> "정류소 도착"; "2" -> "정류소 출발"; else -> "지나 운행 중" }
                         val mins = p1 / 60; val secs = p1 % 60; val timeStr = if (mins > 0) "${mins}분 ${secs}초" else "${secs}초"
-                        displayMessages[rId] = "[$busName] $timeStr 후 도착"
+                        displayMessages[rId] = "[$busName/${item.plateNo1}] $timeStr 후 도착."
                         detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.stationNm1} $stateStr"
                         results.add(Triple(busName, rId, p1))
                     } else {
@@ -309,9 +269,8 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                             results.add(Triple(busName, rId, totalEstSec / 60 * 60 + 59))
                         }
                     }
-                } catch (busEx: Exception) { Log.e(TAG, "[$alertId] 버스($rId) 처리 실패: ${busEx.message}") }
+                } catch (e: Exception) { }
             }
-
             val title = "버스도착알림 : ${alert.stationName}"
             if (results.isEmpty()) { updateArrivalNotification(alertId, title, "운행 정보 없음", "운행 정보 없음"); return 60000L }
             val sorted = results.sortedBy { it.third }; val minTimeSec = sorted.first().third; val busName = sorted.first().first
@@ -320,7 +279,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             val contentDetail = "<[${alert.stationNo}] ${alert.stationName} 버스도착정보>\n\n" + sorted.joinToString("\n\n") { detailMessages[it.second] ?: "" }
             updateArrivalNotification(alertId, title, contentPopup, contentDetail)
             return when { minTimeSec > 300 -> 60000L; minTimeSec > 180 -> 30000L; else -> 15000L }
-        } catch (e: Exception) { updateArrivalNotification(alertId, "버스도착알림 : ${alert.stationName}", "갱신 실패", "갱신 실패"); return 60000L }
+        } catch (e: Exception) { return 60000L }
     }
 
     private fun updateArrivalNotification(alertId: Long, title: String, contentPopup: String, contentDetail: String) {
@@ -345,15 +304,28 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         isBoardingDetected = true; sensorManager.unregisterListener(this); boardingTime = System.currentTimeMillis()
         serviceScope.launch {
             try {
-                val routeId = activeRideAlert?.busRouteId ?: return@launch; val stations = routeStationsCache[routeId] ?: return@launch
+                val alert = activeRideAlert ?: return@launch; val routeId = alert.busRouteId; val stations = routeStationsCache[routeId] ?: return@launch
                 val res = repository.getBusLocations(routeId); val locs = parseLocationList(res.response.msgBody?.busLocationList).filterNotNull()
                 val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
-                val myBus = locs.minByOrNull { bus -> kotlin.math.abs(bus.stationSeq - boardingSeq) }; currentBusPlate = myBus?.plateNo ?: "확인 불가"
-                val destSeq = stations.indexOfFirst { it.stationId == activeRideAlert?.destinationStationId }.takeIf { it != -1 } ?: (boardingSeq + 1)
-                val estDurationMin = (destSeq - boardingSeq).coerceAtLeast(1) * 2; val estArrivalStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(boardingTime + estDurationMin * 60000L))
-                repository.insertRideHistory(RideHistory(date = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(boardingTime)), boardingTime = boardingTime, boardingStationName = boardingStationName ?: "알 수 없음", busNumber = activeRideAlert!!.busNumber, plateNumber = currentBusPlate, alightStationName = activeRideAlert!!.destinationStationName))
-                updateNotification("승차 확인! 버스번호: ${activeRideAlert!!.busNumber} (${currentBusPlate})")
-                shareStatus("승차", activeRideAlert!!.busNumber, currentBusPlate ?: "확인 불가", boardingTime, boardingStationName ?: "", extraInfo = "도착예상: $estArrivalStr (${estDurationMin}분 소요 예상)")
+                lastStationIndex = boardingSeq
+                val myBus = locs.filter { it.stationSeq <= boardingSeq + 1 }.maxByOrNull { it.stationSeq } ?: locs.minByOrNull { kotlin.math.abs(it.stationSeq - boardingSeq) }
+                
+                var estMin = (destStationIndex - boardingSeq).coerceAtLeast(1) * 2
+                if (myBus != null) {
+                    currentBusPlate = myBus.plateNo
+                    try {
+                        val arrRes = repository.getBusArrivalListV2(alert.destinationStationId)
+                        val match = arrRes.response.msgBody?.busArrivalList?.find { it.routeId.toIntSafe().toString() == routeId && it.plateNo1 == currentBusPlate }
+                        if (match != null) estMin = match.predictTimeSec1.toIntSafe() / 60
+                    } catch (e: Exception) { }
+                    updateNotification("승차 확인! 버스: ${alert.busNumber} ($currentBusPlate)")
+                } else {
+                    currentBusPlate = "전세 (GPS 추적)"
+                    updateNotification("승차 확인! [전세 버스]")
+                }
+                
+                repository.insertRideHistory(RideHistory(date = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(boardingTime)), boardingTime = boardingTime, boardingStationName = boardingStationName ?: "알 수 없음", busNumber = alert.busNumber, plateNumber = currentBusPlate, alightStationName = alert.destinationStationName))
+                shareStatus("승차", alert.busNumber, currentBusPlate ?: "확인 불가", boardingTime, boardingStationName ?: "", extraInfo = "도착예상: ${SimpleDateFormat("HH:mm").format(Date(boardingTime + estMin * 60000L))} (${estMin}분 소요 예상)")
             } catch (e: Exception) { }
         }
     }
@@ -361,10 +333,13 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun shareStatus(type: String, busNo: String, plateNo: String, time: Long, station: String, summary: String = "", extraInfo: String = "") {
         val alert = activeRideAlert ?: return; val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
         serviceScope.launch {
-            val allHistories = repository.getAllRideHistories().first(); val historySection = "" // 생략
-            val mainContent = if (summary.isNotEmpty()) summary else "버스: ${busNo}번 ($plateNo)\n일자: ${SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(time))}\n탑승시간: $timeStr\n${if (extraInfo.isNotEmpty()) "$extraInfo\n" else ""}승차정류장: $station\n목적정류장: ${alert.destinationStationName}"
-            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, type, mainContent + historySection) }
-            if (alert.shareKakao) com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, type, mainContent + historySection)
+            val allHistories = repository.getAllRideHistories().first()
+            val filteredLogs = allHistories.filter { it.busNumber == busNo }.sortedByDescending { it.boardingTime }
+            val prev = filteredLogs.filter { it.boardingTime != (if (type == "승차") time else boardingTime) }.take(3)
+            val hist = if (prev.isNotEmpty()) "\n\n[이 노선 과거 이용 기록]\n" + prev.joinToString("\n") { "• ${it.date} ${SimpleDateFormat("HH:mm").format(Date(it.boardingTime))} ${it.plateNumber} (${it.boardingStationName} → ${it.alightStationName})" } else ""
+            val main = if (summary.isNotEmpty()) summary else "버스: ${busNo}번 ($plateNo)\n일자: ${SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(time))}\n탑승시간: $timeStr\n${if (extraInfo.isNotEmpty()) "$extraInfo\n" else ""}승차정류장: $station\n목적정류장: ${alert.destinationStationName}"
+            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, type, main + hist) }
+            if (alert.shareKakao) com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, type, main + hist)
         }
     }
 
@@ -375,12 +350,19 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         if (nearestIdx != -1 && nearestIdx > lastStationIndex) lastStationIndex = nearestIdx
         if (lastStationIndex != -1 && destStationIndex != -1) {
             val stopsRemaining = destStationIndex - lastStationIndex; val distToDest = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, stations[destStationIndex].y, stations[destStationIndex].x, distToDest)
-            if (distToDest[0] < 150) handleAlight() else {
-                updateNotification("다음: ${if (lastStationIndex + 1 < stations.size) stations[lastStationIndex + 1].stationName else "종점"} | 약 ${stopsRemaining * 2}분 (${stopsRemaining}전)")
-                if (stopsRemaining <= 2 && stopsRemaining != lastAlertStops) {
-                    if (stopsRemaining == 2) { triggerAlertEffects(); speak("도착 2정류장 전입니다."); lastAlertStops = 2 }
-                    else if (stopsRemaining == 1) { triggerAlertEffects(); speak("이제 도착합니다. 하차하세요."); lastAlertStops = 1 }
-                }
+            if (distToDest[0] < 150) { handleAlight(); return }
+            serviceScope.launch {
+                try {
+                    var tStr = "약 ${stopsRemaining * 2}분"
+                    if (currentBusPlate != null && !currentBusPlate!!.contains("GPS")) {
+                        val arrRes = repository.getBusArrivalListV2(alert.destinationStationId)
+                        val match = arrRes.response.msgBody?.busArrivalList?.find { it.routeId.toIntSafe().toString() == alert.busRouteId && it.plateNo1 == currentBusPlate }
+                        if (match != null && match.predictTimeSec1.toIntSafe() > 0) { val s = match.predictTimeSec1.toIntSafe(); tStr = "약 ${s/60}분 ${s%60}초" }
+                    }
+                    val next = if (lastStationIndex + 1 < stations.size) stations[lastStationIndex + 1].stationName else "종점"
+                    updateNotification("다음: $next | $tStr (${stopsRemaining}전) | ${String.format("%.1f", distToDest[0]/1000.0)}km")
+                    if (stopsRemaining <= 2 && stopsRemaining != lastAlertStops) { triggerAlertEffects(); if (stopsRemaining == 2) speak("도착 2정류장 전입니다. 하차 준비하세요.") else speak("다음이 목적지입니다. 이번에 하차하세요."); lastAlertStops = stopsRemaining }
+                } catch (e: Exception) { }
             }
         }
     }
@@ -397,7 +379,18 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun triggerAlertEffects() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500), -1)) else vibrator.vibrate(1000) }
     @SuppressLint("MissingPermission") private fun startLocationUpdates() { fusedLocationClient.requestLocationUpdates(LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 15000).build(), locationCallback, Looper.getMainLooper()) }
     private fun createNotificationChannel() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) notificationManager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "버스 알림", NotificationManager.IMPORTANCE_LOW)) }
-    private fun createNotification(content: String): Notification = NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle("버스이동알림").setContentText(content).setSmallIcon(R.mipmap.ic_launcher_foreground).setOngoing(true).build()
+    private fun createNotification(content: String): Notification {
+        val busNumber = activeRideAlert?.busNumber ?: ""
+        val isGpsTracking = currentBusPlate?.contains("GPS") == true
+        val title = if (isGpsTracking) "버스이동알림 : $busNumber (GPS 추적)" else "버스이동알림 : $busNumber"
+        
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setOngoing(true)
+            .build()
+    }
     private fun updateNotification(content: String) { notificationManager.notify(NOTIFICATION_ID, createNotification(content)) }
     private fun parseLocationList(data: Any?): List<com.czt.bbt.api.GBusLocationItem> { val json = gson.toJson(data ?: return emptyList()); return try { if (json.startsWith("[")) gson.fromJson(json, object : TypeToken<List<com.czt.bbt.api.GBusLocationItem>>() {}.type) else listOf(gson.fromJson(json, com.czt.bbt.api.GBusLocationItem::class.java)) } catch (e: Exception) { emptyList() } }
     private fun <T : Any> List<T>.indexOfMinByOrNull(selector: (T) -> Float): Int? { if (isEmpty()) return null; var minIndex = 0; var minValue = selector(this[0]); for (i in 1 until size) { val v = selector(this[i]); if (v < minValue) { minValue = v; minIndex = i } }; return minIndex }

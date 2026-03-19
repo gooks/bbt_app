@@ -39,17 +39,6 @@ fun LabScreen(
                 Text("실험실", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
                 
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { currentSubScreen = "TTS" }.padding(vertical = 8.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    ListItem(
-                        headlineContent = { Text("TTS 테스트", fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("목소리 선택 및 실시간 하이라이트 기능을 테스트합니다.") },
-                        trailingContent = { Icon(Icons.Default.ArrowForward, null) }
-                    )
-                }
-
-                Card(
                     modifier = Modifier.fillMaxWidth().clickable { 
                         viewModel.loadApiUsage()
                         currentSubScreen = "API" 
@@ -64,13 +53,13 @@ fun LabScreen(
                 }
 
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { /* 기타 테스트 */ }.padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().clickable { currentSubScreen = "TTS" }.padding(vertical = 8.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     ListItem(
-                        headlineContent = { Text("기타 테스트", fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("준비 중인 기능입니다.") },
-                        trailingContent = { Icon(Icons.Default.Build, null) }
+                        headlineContent = { Text("TTS 실행", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("목소리 선택 및 실시간 하이라이트 기능을 실행합니다.") },
+                        trailingContent = { Icon(Icons.Default.PlayArrow, null) }
                     )
                 }
             }
