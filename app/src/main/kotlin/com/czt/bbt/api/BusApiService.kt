@@ -160,7 +160,7 @@ data class GBusRouteItem(val routeId: Long, val routeName: String, val routeType
 data class GBusLocationResponse(val response: GBusLocationData)
 data class GBusLocationData(val msgHeader: GBusHeader, val msgBody: GBusLocationBody?)
 data class GBusLocationBody(val busLocationList: Any?)
-data class GBusLocationItem(val plateNo: String, val stationId: Long, val stationSeq: Int, val stateCd: Int, val remainSeatCnt: Int, val routeId: Long)
+data class GBusLocationItem(val plateNo: String, val stationId: Long, val stationSeq: Int, val stateCd: Int, val remainSeatCnt: Int, val routeId: Long, val vehId: Long)
 
 data class GBusStationDetailResponse(val response: GBusStationDetailData)
 data class GBusStationDetailData(val msgHeader: GBusHeader, val msgBody: GBusStationDetailBody?)

@@ -299,6 +299,36 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         }
     }
 
+    private suspend fun calculateChainedEstimate(destStationId: String, routeId: String, targetStationId: String): Int {
+        val locRes = repository.getBusLocations(routeId)
+        val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
+        if (busLocs.isEmpty()) return -1
+
+        var totalSec = 0
+        var currentStationId = destStationId
+        val visitedVehIds = mutableSetOf<String>()
+        val maxIterations = 30
+
+        for (i in 0 until maxIterations) {
+            val arrRes = repository.getBusArrivalItemV2(currentStationId, routeId, "1")
+            val item = arrRes.response.msgBody?.busArrivalItem ?: break
+            val vehId = item.vehId1?.toString() ?: break
+            val predSec = item.predictTimeSec1.toIntSafe()
+            if (predSec <= 0 || !visitedVehIds.add(vehId)) break
+
+            totalSec += predSec
+
+            val busLoc = busLocs.find { it.vehId.toString() == vehId } ?: break
+            val foundStationId = busLoc.stationId.toString()
+
+            if (foundStationId == targetStationId) break
+
+            currentStationId = foundStationId
+        }
+
+        return if (totalSec > 0) totalSec / 60 else -1
+    }
+
     private fun confirmBoarding() {
         if (isBoardingDetected) return
         isBoardingDetected = true; sensorManager.unregisterListener(this); boardingTime = System.currentTimeMillis()
@@ -314,9 +344,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 if (myBus != null) {
                     currentBusPlate = myBus.plateNo
                     try {
-                        val arrRes = repository.getBusArrivalListV2(alert.destinationStationId)
-                        val match = arrRes.response.msgBody?.busArrivalList?.find { it.routeId.toIntSafe().toString() == routeId && it.plateNo1 == currentBusPlate }
-                        if (match != null) estMin = match.predictTimeSec1.toIntSafe() / 60
+                        val boardingStationId = stations.getOrNull(boardingSeq)?.stationId ?: ""
+                        val chainedMin = calculateChainedEstimate(alert.destinationStationId, routeId, boardingStationId)
+                        if (chainedMin > 0) estMin = chainedMin
                     } catch (e: Exception) { }
                     updateNotification("승차 확인! 버스: ${alert.busNumber} ($currentBusPlate)")
                 } else {
@@ -355,11 +385,12 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 try {
                     var estimatedTotalMin = stopsRemaining * 2
                     var tStr = " ${stopsRemaining * 2}"
-                    if (currentBusPlate != null && !currentBusPlate!!.contains("GPS")) {
-                        val arrRes = repository.getBusArrivalListV2(alert.destinationStationId)
-                        val match = arrRes.response.msgBody?.busArrivalList?.find { it.routeId.toIntSafe().toString() == alert.busRouteId && it.plateNo1 == currentBusPlate }
-                        if (match != null && match.predictTimeSec1.toIntSafe() > 0) { val s = match.predictTimeSec1.toIntSafe(); estimatedTotalMin = s / 60; tStr = " ${s/60} ${s%60}" }
-                    }
+                    try {
+                        val nextStationIdx = (lastStationIndex + 1).coerceAtMost(stations.size - 1)
+                        val nextStationId = stations[nextStationIdx].stationId
+                        val chainedMin = calculateChainedEstimate(alert.destinationStationId, alert.busRouteId, nextStationId)
+                        if (chainedMin > 0) { estimatedTotalMin = chainedMin; tStr = " ${chainedMin}" }
+                    } catch (e: Exception) { }
                     val histories = repository.getAllRideHistories().first()
                     val currentHistory = histories.maxByOrNull { it.boardingTime }
                     if (currentHistory != null && currentHistory.alightTime == null) {
