@@ -55,10 +55,10 @@ android {
         val variant = this
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val projectName = "bbt"
+            val projectName = "czt_bbt"
             val vName = variant.versionName
-            val bType = variant.buildType.name
-            output.outputFileName = "$projectName-$vName-$bType.apk"
+            // val bType = variant.buildType.name
+            output.outputFileName = "$projectName-$vName.apk"
         }
     }
 }
