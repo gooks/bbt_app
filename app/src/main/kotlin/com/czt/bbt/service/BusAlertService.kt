@@ -300,33 +300,48 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     }
 
     private suspend fun calculateChainedEstimate(destStationId: String, routeId: String, targetStationId: String): Int {
+        Log.d(TAG, "[ChainEst] START destStationId=$destStationId, routeId=$routeId, targetStationId=$targetStationId")
         val locRes = repository.getBusLocations(routeId)
         val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
-        if (busLocs.isEmpty()) return -1
+        Log.d(TAG, "[ChainEst] busLocs count=${busLocs.size}")
+        if (busLocs.isEmpty()) { Log.d(TAG, "[ChainEst] FAIL: busLocs empty → return -1"); return -1 }
+
+        busLocs.forEach { Log.d(TAG, "[ChainEst] busLoc: vehId=${it.vehId}, plateNo=${it.plateNo}, stationId=${it.stationId}, stationSeq=${it.stationSeq}") }
 
         var totalSec = 0
         var currentStationId = destStationId
-        val visitedVehIds = mutableSetOf<String>()
+        val visitedVehIds = mutableSetOf<Long>()
         val maxIterations = 30
 
         for (i in 0 until maxIterations) {
+            Log.d(TAG, "[ChainEst] iter=$i, currentStationId=$currentStationId")
             val arrRes = repository.getBusArrivalItemV2(currentStationId, routeId, "1")
-            val item = arrRes.response.msgBody?.busArrivalItem ?: break
-            val vehId = item.vehId1?.toString() ?: break
+            val item = arrRes.response.msgBody?.busArrivalItem
+            if (item == null) { Log.d(TAG, "[ChainEst] iter=$i BREAK: busArrivalItem is null"); break }
+
+            val vehIdLong = item.vehId1.toIntSafe().toLong()
             val predSec = item.predictTimeSec1.toIntSafe()
-            if (predSec <= 0 || !visitedVehIds.add(vehId)) break
+            Log.d(TAG, "[ChainEst] iter=$i arrivalItem: vehId1=${item.vehId1}, vehIdLong=$vehIdLong, predictTimeSec1=${item.predictTimeSec1}, plateNo1=${item.plateNo1}, stationNm1=${item.stationNm1}, locationNo1=${item.locationNo1}")
+
+            if (vehIdLong == 0L) { Log.d(TAG, "[ChainEst] iter=$i BREAK: vehIdLong is 0"); break }
+            if (predSec <= 0) { Log.d(TAG, "[ChainEst] iter=$i BREAK: predictTimeSec1=$predSec <= 0"); break }
+            if (!visitedVehIds.add(vehIdLong)) { Log.d(TAG, "[ChainEst] iter=$i BREAK: vehIdLong=$vehIdLong already visited (visited=$visitedVehIds)"); break }
 
             totalSec += predSec
+            Log.d(TAG, "[ChainEst] iter=$i totalSec=$totalSec (added $predSec)")
 
-            val busLoc = busLocs.find { it.vehId.toString() == vehId } ?: break
+            val busLoc = busLocs.find { it.vehId == vehIdLong }
+            if (busLoc == null) { Log.d(TAG, "[ChainEst] iter=$i BREAK: vehIdLong=$vehIdLong not found in busLocs"); break }
             val foundStationId = busLoc.stationId.toString()
+            Log.d(TAG, "[ChainEst] iter=$i matched busLoc: vehIdLong=$vehIdLong → stationId=$foundStationId, stationSeq=${busLoc.stationSeq}, plateNo=${busLoc.plateNo}")
 
-            if (foundStationId == targetStationId) break
-
+            if (foundStationId == targetStationId) { Log.d(TAG, "[ChainEst] iter=$i DONE: reached targetStationId=$targetStationId"); break }
             currentStationId = foundStationId
         }
 
-        return if (totalSec > 0) totalSec / 60 else -1
+        val result = if (totalSec > 0) totalSec / 60 else -1
+        Log.d(TAG, "[ChainEst] END totalSec=$totalSec, result=$result min")
+        return result
     }
 
     private fun confirmBoarding() {
@@ -345,9 +360,13 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     currentBusPlate = myBus.plateNo
                     try {
                         val boardingStationId = stations.getOrNull(boardingSeq)?.stationId ?: ""
+                        Log.d(TAG, "[confirmBoarding] calling chainEst: destStationId=${alert.destinationStationId}, routeId=$routeId, boardingStationId=$boardingStationId (type=${boardingStationId::class.simpleName}), boardingSeq=$boardingSeq, destStationIndex=$destStationIndex, fallbackEstMin=$estMin")
                         val chainedMin = calculateChainedEstimate(alert.destinationStationId, routeId, boardingStationId)
+                        Log.d(TAG, "[confirmBoarding] chainEst result=$chainedMin, previous estMin=$estMin")
                         if (chainedMin > 0) estMin = chainedMin
-                    } catch (e: Exception) { }
+                        Log.d(TAG, "[confirmBoarding] final estMin=$estMin")
+                    } catch (e: Exception) { Log.e(TAG, "[confirmBoarding] chainEst exception", e) }
+
                     updateNotification("승차 확인! 버스: ${alert.busNumber} ($currentBusPlate)")
                 } else {
                     currentBusPlate = "전세 (GPS 추적)"
@@ -388,9 +407,12 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     try {
                         val nextStationIdx = (lastStationIndex + 1).coerceAtMost(stations.size - 1)
                         val nextStationId = stations[nextStationIdx].stationId
+                        Log.d(TAG, "[checkRideStatus] calling chainEst: destStationId=${alert.destinationStationId}, routeId=${alert.busRouteId}, nextStationId=$nextStationId, nextStationIdx=$nextStationIdx, lastStationIndex=$lastStationIndex, stopsRemaining=$stopsRemaining, fallbackEstMin=$estimatedTotalMin")
                         val chainedMin = calculateChainedEstimate(alert.destinationStationId, alert.busRouteId, nextStationId)
+                        Log.d(TAG, "[checkRideStatus] chainEst result=$chainedMin")
                         if (chainedMin > 0) { estimatedTotalMin = chainedMin; tStr = " ${chainedMin}" }
-                    } catch (e: Exception) { }
+                        Log.d(TAG, "[checkRideStatus] final estimatedTotalMin=$estimatedTotalMin")
+                    } catch (e: Exception) { Log.e(TAG, "[checkRideStatus] chainEst exception", e) }
                     val histories = repository.getAllRideHistories().first()
                     val currentHistory = histories.maxByOrNull { it.boardingTime }
                     if (currentHistory != null && currentHistory.alightTime == null) {
