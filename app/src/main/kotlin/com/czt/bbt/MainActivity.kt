@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,6 +28,7 @@ import java.util.*
 @AndroidEntryPoint
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
+    private val viewModel: BusViewModel by viewModels()
     private var tts: TextToSpeech? = null
     private val _currentWordRange = mutableStateOf<Pair<Int, Int>?>(null)
     private val _availableVoices = mutableStateListOf<Voice>()
@@ -41,6 +43,59 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        android.util.Log.d("GoogleLogin", "Result Code: ${result.resultCode}")
+        if (result.resultCode == RESULT_OK) {
+            val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+                android.util.Log.d("GoogleLogin", "Success: ${account?.email}")
+                viewModel.onGoogleSignInSuccess(account?.email ?: "", account?.id ?: "")
+                Toast.makeText(this, "구글 로그인 성공: ${account?.email}", Toast.LENGTH_SHORT).show()
+            } catch (e: com.google.android.gms.common.api.ApiException) {
+                android.util.Log.e("GoogleLogin", "Error Code: ${e.statusCode}, Message: ${e.message}")
+                val errorMsg = when(e.statusCode) {
+                    7 -> "네트워크 연결 확인 필요 (7)"
+                    10 -> "인증 오류(10): Firebase에 SHA-1 지문이 등록되었는지, google-services.json이 최신인지 확인하세요."
+                    12500 -> "구글 서비스 업데이트 필요 (12500)"
+                    12501 -> "사용자가 로그인을 취소했습니다 (12501)"
+                    else -> "로그인 실패: ${e.statusCode}"
+                }
+                Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+            }
+        } else if (result.resultCode == RESULT_CANCELED) {
+            android.util.Log.w("GoogleLogin", "Sign-in cancelled by user or system configuration error.")
+            Toast.makeText(this, "로그인이 취소되었습니다. 설정(SHA-1)을 확인해 주세요.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun loginWithGoogle() {
+        android.util.Log.d("GoogleLogin", "Starting Google Sign-In Intent")
+        
+        // 1. Web Client ID 가져오기 (Firebase 연동 필수)
+        val webClientIdResId = resources.getIdentifier("default_web_client_id", "string", packageName)
+        val webClientId = if (webClientIdResId != 0) getString(webClientIdResId) else null
+        
+        android.util.Log.d("GoogleLogin", "Web Client ID: $webClientId")
+
+        val gsoBuilder = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+        
+        // ID 토큰 요청이 있어야 Firebase 로그인으로 간주됩니다.
+        if (webClientId != null) {
+            gsoBuilder.requestIdToken(webClientId)
+        }
+
+        val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this, gsoBuilder.build())
+        
+        // 기존 세션 로그아웃 후 로그인 창 실행
+        client.signOut().addOnCompleteListener {
+            googleSignInLauncher.launch(client.signInIntent)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         tts = TextToSpeech(this, this)
@@ -48,9 +103,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    val viewModel: BusViewModel = hiltViewModel()
+                    // hiltViewModel() 대신 Activity 인스턴스인 viewModel을 직접 전달
                     
-                    // 알림 목록 관찰 및 숏컷 갱신
                     androidx.compose.runtime.LaunchedEffect(Unit) {
                         kotlinx.coroutines.flow.combine(viewModel.rideAlerts, viewModel.arrivalAlerts) { ride, arrival ->
                             Pair(ride, arrival)

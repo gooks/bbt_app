@@ -3,9 +3,12 @@ package com.czt.bbt.ui.screens
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -17,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -36,8 +40,19 @@ fun LabScreen(
     when (currentSubScreen) {
         "MENU" -> {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                Text("실험실", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
+                Text("설정", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
                 
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { currentSubScreen = "SETTINGS" }.padding(vertical = 8.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("계정설정", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("구글/카카오 계정 연동 및 자동 알림 설정을 관리합니다.") },
+                        trailingContent = { Icon(Icons.Default.Settings, null) }
+                    )
+                }
+
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { 
                         viewModel.loadApiUsage()
@@ -64,8 +79,188 @@ fun LabScreen(
                 }
             }
         }
+        "SETTINGS" -> {
+            LaunchedEffect(Unit) { viewModel.checkKakaoLoginStatus() }
+            SettingsScreen(viewModel) { currentSubScreen = "MENU" }
+        }
         "TTS" -> TtsTestScreen(tts, wordRange, availableVoices, selectedVoice) { currentSubScreen = "MENU" }
         "API" -> ApiUsageScreen(viewModel) { currentSubScreen = "MENU" }
+    }
+}
+
+@Composable
+fun SettingsScreen(viewModel: BusViewModel, onBack: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    var appPassword by remember { mutableStateOf(viewModel.googleAppPassword.value) }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(scrollState)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) }
+            Text("계정설정", style = MaterialTheme.typography.titleLarge)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 1. 구글 계정 연동 섹션
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("구글 계정 연동", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text("계정 연동 시 설정 동기화 및 메일 자동 발송이 가능합니다.", fontSize = 12.sp, color = Color.Gray)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (viewModel.isGoogleLoggedIn.value) {
+                    ListItem(
+                        headlineContent = { Text(viewModel.googleEmail.value) },
+                        supportingContent = { Text("연동됨 (설정 동기화 활성)") },
+                        leadingContent = { Icon(Icons.Default.AccountCircle, null, tint = MaterialTheme.colorScheme.primary) }
+                    )
+                    
+                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { 
+                                scope.launch {
+                                    viewModel.onGoogleSignInSuccess(viewModel.googleEmail.value, viewModel.googleEmail.value)
+                                    android.widget.Toast.makeText(context, "데이터 동기화가 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Refresh, null)
+                            Text(" 동기화")
+                        }
+                        
+                        Button(
+                            onClick = { 
+                                viewModel.logoutGoogle()
+                                android.widget.Toast.makeText(context, "구글 연동이 해제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("연동 해제")
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = { (context as? com.czt.bbt.MainActivity)?.loginWithGoogle() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4))
+                    ) {
+                        Text("Google 계정 연동하기")
+                    }
+                }
+            }
+        }
+
+        // 2. 카카오 계정 연동 섹션
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("카카오톡 연동", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text("카카오톡 '나에게 보내기' 알림을 받으려면 연동이 필요합니다.", fontSize = 12.sp, color = Color.Gray)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (viewModel.isKakaoLoggedIn.value) {
+                    ListItem(
+                        headlineContent = { Text(viewModel.kakaoNickname.value) },
+                        supportingContent = { Text("연동됨 (카톡 알림 활성)") },
+                        leadingContent = { Icon(Icons.Default.Email, null, tint = Color(0xFFFFE812)) }
+                    )
+                    
+                    Button(
+                        onClick = { 
+                            viewModel.logoutKakao()
+                            android.widget.Toast.makeText(context, "카카오톡 연동이 해제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("연동 해제")
+                    }
+                } else {
+                    Button(
+                        onClick = { viewModel.loginWithKakao(context) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFE812), contentColor = Color.Black)
+                    ) {
+                        Text("카카오톡 계정 연동하기")
+                    }
+                }
+            }
+        }
+
+        // 3. 이메일 자동 발송 설정 섹션
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            colors = if (viewModel.isGoogleLoggedIn.value) CardDefaults.cardColors() else CardDefaults.cardColors(containerColor = Color.LightGray.copy(alpha = 0.2f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("메일 자동 발송 설정", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                
+                if (viewModel.isGoogleLoggedIn.value) {
+                    Text("발신 계정: ${viewModel.googleEmail.value}", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = appPassword,
+                        onValueChange = { appPassword = it },
+                        label = { Text("구글 앱 비밀번호 (16자리)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        singleLine = true,
+                        placeholder = { Text("abcd efgh ijkl mnop") }
+                    )
+                    
+                    Text(
+                        "Gmail 설정 > 보안 > 2단계 인증 > 앱 비밀번호에서 발급받은 코드를 입력하고 저장하세요.",
+                        fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = { 
+                            viewModel.saveGoogleAccount(viewModel.googleEmail.value, appPassword)
+                            android.widget.Toast.makeText(context, "메일 발송 설정이 저장되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("메일 설정 저장")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("위의 구글 계정 연동을 먼저 완료해주세요.", fontSize = 13.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+        
+        // 4. 디버그 정보 (키 해시 확인용)
+        Spacer(modifier = Modifier.height(24.dp))
+        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("디버그 정보 (카카오 연동 오류 시 확인)", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("KakaoKeyHash", com.czt.bbt.BusApp.keyHash)
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(context, "키 해시가 복사되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.05f))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text("카카오 키 해시 (클릭하여 복사):", fontSize = 11.sp, color = Color.Gray)
+                Text(com.czt.bbt.BusApp.keyHash, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("위 값을 카카오 개발자 콘솔 안드로이드 플랫폼에 등록하세요.", fontSize = 10.sp, color = Color.DarkGray, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 

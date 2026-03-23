@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.czt.bbt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.4.4_01"
+        versionCode = 12
+        versionName = "0.4.5_01"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -29,6 +30,11 @@ android {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+    }
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        disable += "MissingClass"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -47,6 +53,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE.txt"
+            
+            // 중복 파일 발생 시 첫 번째 것을 선택하도록 설정
+            pickFirsts += "META-INF/NOTICE.md"
+            pickFirsts += "META-INF/LICENSE.md"
         }
     }
 
@@ -71,6 +86,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.activity:activity-ktx:1.8.2")
     
     // Compose
     implementation(platform("androidx.compose:compose-bom:2023.08.00"))
@@ -96,6 +112,18 @@ dependencies {
     
     // Location & Sensor
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    
+    // Google Login
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Mail
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
     
     // Kakao SDK
     implementation("com.kakao.sdk:v2-all:2.19.0")

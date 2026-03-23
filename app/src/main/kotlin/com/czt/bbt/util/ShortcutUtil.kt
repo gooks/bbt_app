@@ -23,7 +23,7 @@ object ShortcutUtil {
             }
 
             val shortcut = ShortcutInfoCompat.Builder(context, "ride_${alert.id}")
-                .setShortLabel("[이동] ${alert.busNumber}번")
+                .setShortLabel("[이동]${alert.busNumber}-${alert.destinationStationName}")
                 .setLongLabel("[이동] ${alert.busNumber}번 (${alert.destinationStationName}행)")
                 .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
                 .setIntent(intent)
@@ -39,7 +39,7 @@ object ShortcutUtil {
             }
 
             val shortcut = ShortcutInfoCompat.Builder(context, "arrival_${alert.id}")
-                .setShortLabel("[도착] ${alert.stationName}")
+                .setShortLabel("[도착]${alert.stationName}")
                 .setLongLabel("[도착] ${alert.stationName} (${alert.targetBusNames.joinToString(",")})")
                 .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
                 .setIntent(intent)

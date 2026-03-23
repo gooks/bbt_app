@@ -3,9 +3,12 @@ package com.czt.bbt.data
 import com.czt.bbt.api.BusApiService
 import com.czt.bbt.model.*
 import com.czt.bbt.ui.BusAlertState
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,8 +19,68 @@ class BusRepository @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) {
     private val apiPrefs = context.getSharedPreferences("api_usage_prefs", android.content.Context.MODE_PRIVATE)
+    private val mainPrefs = context.getSharedPreferences("bus_alert_prefs", android.content.Context.MODE_PRIVATE)
     private val serviceKey = "cdc5e165cd54d32593270eab28c0671f54386348ccad640e03daf36a681f5241"
     private val gson = Gson()
+    private val firestore = FirebaseFirestore.getInstance()
+
+    // 동기화 관련
+    private fun getUserId(): String = mainPrefs.getString("google_user_id", "") ?: ""
+
+    suspend fun syncWithCloud() {
+        val uid = getUserId()
+        if (uid.isEmpty()) return
+
+        try {
+            // 1. 사용자 프로필(앱 비밀번호 등) 가져오기
+            val userDoc = firestore.collection("users").document(uid).get().await()
+            if (userDoc.exists()) {
+                val cloudAppPass = userDoc.getString("google_app_password") ?: ""
+                if (cloudAppPass.isNotEmpty()) {
+                    mainPrefs.edit().putString("google_app_password", cloudAppPass).apply()
+                }
+            }
+
+            // 2. 알람 데이터 가져오기
+            val rideSnapshot = firestore.collection("users").document(uid).collection("ride_alerts").get().await()
+            val arrivalSnapshot = firestore.collection("users").document(uid).collection("arrival_alerts").get().await()
+
+            val cloudRideAlerts = rideSnapshot.toObjects(RideAlert::class.java)
+            val cloudArrivalAlerts = arrivalSnapshot.toObjects(ArrivalAlert::class.java)
+
+            cloudRideAlerts.forEach { busDao.insertRideAlert(it) }
+            cloudArrivalAlerts.forEach { busDao.insertArrivalAlert(it) }
+            
+            logSystem("SYNC", "클라우드 동기화 완료 (이동:${cloudRideAlerts.size}, 도착:${cloudArrivalAlerts.size})")
+        } catch (e: Exception) {
+            logSystem("SYNC_FAIL", "동기화 실패: ${e.message}")
+        }
+    }
+
+    suspend fun saveGoogleAppPasswordToCloud(password: String) {
+        val uid = getUserId(); if (uid.isEmpty()) return
+        firestore.collection("users").document(uid).set(mapOf("google_app_password" to password), com.google.firebase.firestore.SetOptions.merge())
+    }
+
+    private suspend fun uploadRideAlert(alert: RideAlert) {
+        val uid = getUserId(); if (uid.isEmpty()) return
+        firestore.collection("users").document(uid).collection("ride_alerts").document(alert.id.toString()).set(alert)
+    }
+
+    private suspend fun uploadArrivalAlert(alert: ArrivalAlert) {
+        val uid = getUserId(); if (uid.isEmpty()) return
+        firestore.collection("users").document(uid).collection("arrival_alerts").document(alert.id.toString()).set(alert)
+    }
+
+    private suspend fun deleteRideAlertFromCloud(id: Long) {
+        val uid = getUserId(); if (uid.isEmpty()) return
+        firestore.collection("users").document(uid).collection("ride_alerts").document(id.toString()).delete()
+    }
+
+    private suspend fun deleteArrivalAlertFromCloud(id: Long) {
+        val uid = getUserId(); if (uid.isEmpty()) return
+        firestore.collection("users").document(uid).collection("arrival_alerts").document(id.toString()).delete()
+    }
 
     private fun updateApiCount(tag: String) {
         val today = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date())
@@ -96,14 +159,32 @@ class BusRepository @Inject constructor(
     }
 
     // Alerts & History
-    suspend fun insertRideAlert(alert: RideAlert) = busDao.insertRideAlert(alert)
+    suspend fun insertRideAlert(alert: RideAlert) {
+        val id = busDao.insertRideAlert(alert)
+        uploadRideAlert(alert.copy(id = id))
+    }
     fun getAllRideAlerts(): Flow<List<RideAlert>> = busDao.getAllRideAlerts()
-    suspend fun updateRideAlert(alert: RideAlert) = busDao.updateRideAlert(alert)
-    suspend fun deleteRideAlert(alert: RideAlert) = busDao.deleteRideAlert(alert)
-    suspend fun insertArrivalAlert(alert: ArrivalAlert) = busDao.insertArrivalAlert(alert)
+    suspend fun updateRideAlert(alert: RideAlert) {
+        busDao.updateRideAlert(alert)
+        uploadRideAlert(alert)
+    }
+    suspend fun deleteRideAlert(alert: RideAlert) {
+        busDao.deleteRideAlert(alert)
+        deleteRideAlertFromCloud(alert.id)
+    }
+    suspend fun insertArrivalAlert(alert: ArrivalAlert) {
+        val id = busDao.insertArrivalAlert(alert)
+        uploadArrivalAlert(alert.copy(id = id))
+    }
     fun getAllArrivalAlerts(): Flow<List<ArrivalAlert>> = busDao.getAllArrivalAlerts()
-    suspend fun updateArrivalAlert(alert: ArrivalAlert) = busDao.updateArrivalAlert(alert)
-    suspend fun deleteArrivalAlert(alert: ArrivalAlert) = busDao.deleteArrivalAlert(alert)
+    suspend fun updateArrivalAlert(alert: ArrivalAlert) {
+        busDao.updateArrivalAlert(alert)
+        uploadArrivalAlert(alert)
+    }
+    suspend fun deleteArrivalAlert(alert: ArrivalAlert) {
+        busDao.deleteArrivalAlert(alert)
+        deleteArrivalAlertFromCloud(alert.id)
+    }
     suspend fun insertRideHistory(history: RideHistory) = busDao.insertRideHistory(history)
     fun getAllRideHistories(): Flow<List<RideHistory>> = busDao.getAllRideHistories()
     suspend fun updateRideHistory(history: RideHistory) = busDao.updateRideHistory(history)

@@ -14,5 +14,6 @@ data class RideHistory(
     val alightTime: Long? = null,
     val alightStationName: String? = null,
     val isManuallyStopped: Boolean = false,
-    val estimatedMinutes: Int? = null
+    val estimatedMinutes: Int? = null,
+    val stopsRemaining: Int? = null
 )

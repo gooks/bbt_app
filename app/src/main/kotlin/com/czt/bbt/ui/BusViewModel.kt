@@ -73,6 +73,73 @@ class BusViewModel @Inject constructor(
     var errorMessage = mutableStateOf<String?>(null)
     var isLoading = mutableStateOf(false)
 
+    // 구글 계정 및 메일 설정
+    var googleEmail = mutableStateOf(prefs.getString("google_email", "") ?: "")
+    var googleAppPassword = mutableStateOf(prefs.getString("google_app_password", "") ?: "")
+    var googleUserId = mutableStateOf(prefs.getString("google_user_id", "") ?: "")
+    var isGoogleLoggedIn = mutableStateOf(googleUserId.value.isNotEmpty())
+    
+    // 카카오 계정 설정
+    var isKakaoLoggedIn = mutableStateOf(false)
+    var kakaoNickname = mutableStateOf("")
+
+    fun checkKakaoLoginStatus() {
+        com.kakao.sdk.user.UserApiClient.instance.me { user, error ->
+            if (user != null) {
+                isKakaoLoggedIn.value = true
+                kakaoNickname.value = user.kakaoAccount?.profile?.nickname ?: "사용자"
+            } else {
+                isKakaoLoggedIn.value = false
+                kakaoNickname.value = ""
+            }
+        }
+    }
+
+    fun logoutKakao() {
+        com.kakao.sdk.user.UserApiClient.instance.logout {
+            isKakaoLoggedIn.value = false
+            kakaoNickname.value = ""
+        }
+    }
+
+    fun onGoogleSignInSuccess(email: String, userId: String) {
+        googleEmail.value = email
+        googleUserId.value = userId
+        isGoogleLoggedIn.value = true
+        prefs.edit().putString("google_email", email).putString("google_user_id", userId).apply()
+        
+        // 로그인 성공 시 동기화 시작
+        syncDataWithCloud()
+    }
+
+    private fun syncDataWithCloud() {
+        val uid = googleUserId.value
+        if (uid.isEmpty()) return
+        
+        viewModelScope.launch {
+            repository.syncWithCloud()
+        }
+    }
+
+    fun saveGoogleAccount(email: String, appPassword: String) {
+        googleEmail.value = email
+        googleAppPassword.value = appPassword
+        isGoogleLoggedIn.value = email.isNotEmpty()
+        prefs.edit().putString("google_email", email).putString("google_app_password", appPassword).apply()
+        
+        // 클라우드에 앱 비밀번호 저장
+        viewModelScope.launch {
+            repository.saveGoogleAppPasswordToCloud(appPassword)
+        }
+    }
+
+    fun logoutGoogle() {
+        googleEmail.value = ""
+        googleAppPassword.value = ""
+        isGoogleLoggedIn.value = false
+        prefs.edit().remove("google_email").remove("google_app_password").apply()
+    }
+
     // API 현황 상태
     var apiUsage = mutableStateMapOf<String, Int>()
 
@@ -238,7 +305,11 @@ class BusViewModel @Inject constructor(
             if (error != null) {
                 errorMessage.value = "카카오 로그인 실패: ${error.message}"
             } else if (token != null) {
-                viewModelScope.launch { repository.logSystem("KAKAO_LOGIN", "카카오 로그인 성공") }
+                viewModelScope.launch { 
+                    repository.logSystem("KAKAO_LOGIN", "카카오 로그인 성공")
+                    checkKakaoLoginStatus()
+                    android.widget.Toast.makeText(context, "카카오톡 연동이 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
 

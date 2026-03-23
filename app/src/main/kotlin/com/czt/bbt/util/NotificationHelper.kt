@@ -39,17 +39,58 @@ object NotificationHelper {
     }
 
     fun sendEmail(context: Context, busNo: String, plateNo: String, time: String, station: String, type: String, summary: String = "") {
-        val intent = Intent(Intent.ACTION_SENDTO).apply {
-            data = Uri.parse("mailto:")
-            putExtra(Intent.EXTRA_SUBJECT, "[버스알림] $type 알림")
-            val body = if (summary.isNotEmpty()) summary else "버스 번호: ${busNo}번\n차량 번호: $plateNo\n시간: $time\n정류장: $station"
-            putExtra(Intent.EXTRA_TEXT, body)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e("Email", "이메일 앱을 찾을 수 없습니다.")
+        val prefs = context.getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
+        val userEmail = prefs.getString("google_email", "") ?: ""
+        val appPass = prefs.getString("google_app_password", "") ?: ""
+
+        val subject = "[버스알림] $type 알림"
+        val body = if (summary.isNotEmpty()) summary else "버스 번호: ${busNo}번\n차량 번호: $plateNo\n시간: $time\n정류장: $station"
+
+        if (userEmail.isNotEmpty() && appPass.isNotEmpty()) {
+            // 백그라운드 자동 전송 (JavaMail)
+            Thread {
+                try {
+                    val props = java.util.Properties().apply {
+                        put("mail.smtp.host", "smtp.gmail.com")
+                        put("mail.smtp.socketFactory.port", "465")
+                        put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
+                        put("mail.smtp.auth", "true")
+                        put("mail.smtp.port", "465")
+                    }
+
+                    val session = javax.mail.Session.getDefaultInstance(props, object : javax.mail.Authenticator() {
+                        override fun getPasswordAuthentication(): javax.mail.PasswordAuthentication {
+                            return javax.mail.PasswordAuthentication(userEmail, appPass)
+                        }
+                    })
+
+                    val message = javax.mail.internet.MimeMessage(session).apply {
+                        setFrom(javax.mail.internet.InternetAddress(userEmail))
+                        addRecipient(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress(userEmail))
+                        setSubject(subject)
+                        setText(body)
+                    }
+
+                    javax.mail.Transport.send(message)
+                    Log.i("Email", "메일 자동 전송 성공")
+                } catch (e: Exception) {
+                    Log.e("Email", "메일 자동 전송 실패: ${e.message}")
+                    // 실패 시 기존 방식으로 폴백하거나 알림
+                }
+            }.start()
+        } else {
+            // 기존 방식: 이메일 앱 호출
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:")
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, body)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("Email", "이메일 앱을 찾을 수 없습니다.")
+            }
         }
     }
 }

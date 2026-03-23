@@ -19,7 +19,7 @@ fun BusAppScreen(
     selectedVoice: MutableState<Voice?>
 ) {
     var tabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("도착현황", "버스도착", "이동이력", "버스이동", "🚧")
+    val tabs = listOf("도착현황", "버스도착", "이동이력", "버스이동", "설정")
 
     Scaffold(
         topBar = {
