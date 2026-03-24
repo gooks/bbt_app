@@ -1,6 +1,7 @@
 package com.czt.bbt
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -51,9 +52,29 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-                android.util.Log.d("GoogleLogin", "Success: ${account?.email}")
-                viewModel.onGoogleSignInSuccess(account?.email ?: "", account?.id ?: "")
-                Toast.makeText(this, "구글 로그인 성공: ${account?.email}", Toast.LENGTH_SHORT).show()
+                android.util.Log.d("GoogleLogin", "Google Sign-In Success: ${account?.email}")
+
+                // Firebase Authentication with Google credential
+                val idToken = account?.idToken
+                if (idToken != null) {
+                    val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
+                    com.google.firebase.auth.FirebaseAuth.getInstance().signInWithCredential(credential)
+                        .addOnCompleteListener(this) { firebaseAuthTask ->
+                            if (firebaseAuthTask.isSuccessful) {
+                                val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                val firebaseUid = firebaseUser?.uid
+                                android.util.Log.d("FirebaseAuth", "Firebase Auth Success. UID: $firebaseUid")
+                                viewModel.onGoogleSignInSuccess(account?.email ?: "", firebaseUid ?: "")
+                                Toast.makeText(this, "구글 로그인 성공 (Firebase 연동): ${account?.email}", Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.util.Log.e("FirebaseAuth", "Firebase Auth Failed: ${firebaseAuthTask.exception?.message}")
+                                Toast.makeText(this, "Firebase 연동 실패: ${firebaseAuthTask.exception?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                } else {
+                    android.util.Log.e("GoogleLogin", "Google ID Token is null. Cannot proceed with Firebase Auth.")
+                    Toast.makeText(this, "구글 ID 토큰 없음: Firebase 연동 불가", Toast.LENGTH_LONG).show()
+                }
             } catch (e: com.google.android.gms.common.api.ApiException) {
                 android.util.Log.e("GoogleLogin", "Error Code: ${e.statusCode}, Message: ${e.message}")
                 val errorMsg = when(e.statusCode) {
@@ -98,8 +119,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("APP_START", "MainActivity onCreate called.")
         tts = TextToSpeech(this, this)
-        checkAndRequestPermissions()
+        
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -122,6 +144,18 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     )
                 }
             }
+        }
+        
+        // 권한 확인 및 최초 실행 시 구글 로그인 유도
+        checkAndRequestPermissions()
+        val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
+        val googleUserId = prefs.getString("google_user_id", "")
+        if (googleUserId.isNullOrEmpty()) {
+            android.util.Log.d("MainActivity", "onCreate: Google User ID is empty. Initiating Google Sign-In.")
+            loginWithGoogle()
+        } else {
+            android.util.Log.d("MainActivity", "onCreate: Google User ID exists ($googleUserId). Forcing sync and refresh.")
+            viewModel.forceSyncAndRefresh()
         }
     }
 override fun onInit(status: Int) {

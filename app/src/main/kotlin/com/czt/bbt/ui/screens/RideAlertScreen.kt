@@ -160,12 +160,11 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                                 Spacer(modifier = Modifier.weight(1f))
                                 Switch(
                                     checked = viewModel.rideShareKakao.value, 
-                                    onCheckedChange = { 
-                                        viewModel.rideShareKakao.value = it 
-                                        if (it) {
-                                            // 켜는 시점에 로그인 확인 유도 (간접)
-                                            viewModel.errorMessage.value = "자동 알림을 위해 카카오 로그인이 필요합니다."
+                                    onCheckedChange = { isChecked ->
+                                        if (!viewModel.isKakaoLoggedIn.value && isChecked) {
+                                            viewModel.loginWithKakao(context)
                                         }
+                                        viewModel.toggleKakaoShare(context, isChecked)
                                     }
                                 )
                             }
@@ -178,20 +177,8 @@ fun RideAlertDialog(viewModel: BusViewModel, onDismiss: () -> Unit) {
                                     lineHeight = 16.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-                                
-                                Button(
-                                    onClick = { viewModel.loginWithKakao(context) },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE500), contentColor = Color.Black),
-                                    shape = MaterialTheme.shapes.small
-                                ) {
-                                    Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("카카오 로그인 및 권한 허용", fontSize = 12.sp)
-                                }
-                                
                                 Text(
-                                    "* 전송 실패 시 '로그인' 버튼을 다시 눌러주세요.",
+                                    "* 전송 실패 시 '계정설정'에서 재연동해 주세요.",
                                     fontSize = 10.sp,
                                     color = Color.Gray,
                                     modifier = Modifier.padding(top = 4.dp)

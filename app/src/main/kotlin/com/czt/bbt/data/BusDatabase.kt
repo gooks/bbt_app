@@ -13,6 +13,9 @@ interface BusDao {
     @Query("SELECT * FROM ride_alerts")
     fun getAllRideAlerts(): Flow<List<RideAlert>>
 
+    @Query("SELECT * FROM ride_alerts")
+    suspend fun getAllRideAlertsOnce(): List<RideAlert>
+
     @Update
     suspend fun updateRideAlert(alert: RideAlert)
 
@@ -26,11 +29,20 @@ interface BusDao {
     @Query("SELECT * FROM arrival_alerts")
     fun getAllArrivalAlerts(): Flow<List<ArrivalAlert>>
 
+    @Query("SELECT * FROM arrival_alerts")
+    suspend fun getAllArrivalAlertsOnce(): List<ArrivalAlert>
+
     @Update
     suspend fun updateArrivalAlert(alert: ArrivalAlert)
 
     @Delete
     suspend fun deleteArrivalAlert(alert: ArrivalAlert)
+
+    @Query("DELETE FROM ride_alerts WHERE id = :alertId")
+    suspend fun deleteRideAlertById(alertId: Long)
+
+    @Query("DELETE FROM arrival_alerts WHERE id = :alertId")
+    suspend fun deleteArrivalAlertById(alertId: Long)
 
     // Ride History
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -64,11 +76,16 @@ interface BusDao {
 
     @Query("DELETE FROM system_logs")
     suspend fun clearSystemLogs()
+    // Clear for Sync
+    @Query("DELETE FROM ride_alerts")
+    suspend fun clearAllRideAlerts()
+    @Query("DELETE FROM arrival_alerts")
+    suspend fun clearAllArrivalAlerts()
 }
 
 @Database(
     entities = [RideAlert::class, ArrivalAlert::class, RideHistory::class, SystemLog::class, CachedRouteStation::class],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

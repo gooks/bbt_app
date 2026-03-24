@@ -6,12 +6,13 @@ import androidx.room.TypeConverters
 
 @Entity(tableName = "arrival_alerts")
 data class ArrivalAlert(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stationName: String,
-    val stationId: String,
+    @PrimaryKey(autoGenerate = true) override val id: Long = 0,
+    val stationName: String = "",
+    val stationId: String = "",
     val stationNo: String = "", // 정류소 번호 추가
     @TypeConverters(Converters::class)
-    val targetBusNumbers: List<String>, // RouteIDs
+    val targetBusNumbers: List<String> = emptyList(), // RouteIDs
     @TypeConverters(Converters::class)
-    val targetBusNames: List<String> = emptyList() // RouteNames (추가)
-)
+    val targetBusNames: List<String> = emptyList(), // RouteNames (추가)
+    override val lastModified: Long = System.currentTimeMillis()
+) : CloudSyncable

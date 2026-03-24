@@ -103,13 +103,33 @@ class BusViewModel @Inject constructor(
     }
 
     fun onGoogleSignInSuccess(email: String, userId: String) {
-        googleEmail.value = email
-        googleUserId.value = userId
-        isGoogleLoggedIn.value = true
+        android.util.Log.d("BusViewModel", "onGoogleSignInSuccess: Saving email=$email, userId=$userId")
         prefs.edit().putString("google_email", email).putString("google_user_id", userId).apply()
+        forceSyncAndRefresh()
+    }
+
+    fun forceSyncAndRefresh() {
+        val uid = prefs.getString("google_user_id", "") ?: ""
+        android.util.Log.d("BusViewModel", "forceSyncAndRefresh: Attempting sync for UID=$uid")
+        if (uid.isEmpty()) {
+            android.util.Log.w("BusViewModel", "forceSyncAndRefresh: UID is empty, skipping sync.")
+            return
+        }
         
-        // 로그인 성공 시 동기화 시작
-        syncDataWithCloud()
+        viewModelScope.launch {
+            // 1. 클라우드에서 데이터 가져오기
+            repository.syncWithCloud()
+            
+            // 2. 동기화 후 SharedPreferences에서 최신 정보로 UI 상태 강제 갱신
+            googleEmail.value = prefs.getString("google_email", "") ?: ""
+            googleAppPassword.value = prefs.getString("google_app_password", "") ?: ""
+            googleUserId.value = prefs.getString("google_user_id", "") ?: ""
+            isGoogleLoggedIn.value = googleUserId.value.isNotEmpty()
+            android.util.Log.d("BusViewModel", "forceSyncAndRefresh: UI state refreshed. googleUserId=${googleUserId.value}")
+
+            // 3. 카카오 로그인 상태도 갱신
+            checkKakaoLoginStatus()
+        }
     }
 
     private fun syncDataWithCloud() {
@@ -117,7 +137,10 @@ class BusViewModel @Inject constructor(
         if (uid.isEmpty()) return
         
         viewModelScope.launch {
-            repository.syncWithCloud()
+            val cloudAppPass = repository.syncWithCloud()
+            if (cloudAppPass != null) {
+                googleAppPassword.value = cloudAppPass
+            }
         }
     }
 
@@ -320,10 +343,46 @@ class BusViewModel @Inject constructor(
         }
     }
 
+    fun toggleKakaoShare(context: Context, isChecked: Boolean) {
+        if (!isChecked) {
+            rideShareKakao.value = false
+            return
+        }
+
+        com.kakao.sdk.user.UserApiClient.instance.scopes { scopeInfo, error ->
+            if (error != null) {
+                errorMessage.value = "카카오톡 권한 확인 실패: ${error.message}"
+                return@scopes
+            }
+
+            if (scopeInfo?.scopes?.any { it.id == "talk_message" } == true) {
+                // 이미 '나에게 보내기' 권한이 있으면 상태만 변경
+                rideShareKakao.value = true
+            } else {
+                // 권한이 없으면 동적 동의 요청
+                com.kakao.sdk.user.UserApiClient.instance.loginWithNewScopes(context, listOf("talk_message")) { token, scopeError ->
+                    if (scopeError != null) {
+                        errorMessage.value = "카카오톡 메시지 권한 동의 실패: ${scopeError.message}"
+                    } else if (token != null) {
+                        rideShareKakao.value = true
+                        viewModelScope.launch { repository.logSystem("KAKAO_SCOPE", "카카오 메시지 권한 획득") }
+                    }
+                }
+            }
+        }
+    }
+
     fun saveRideAlert() {
         val bus = rideSelectedBus.value ?: return; val dest = rideSelectedDestination.value ?: return
         viewModelScope.launch {
-            val alert = RideAlert(id = editingRideAlert.value?.id ?: 0, busNumber = bus.name, busRouteId = bus.routeId, destinationStationName = dest.name, destinationStationId = dest.id, destinationStationSeq = dest.seq, shareEmails = rideShareEmails.toList(), shareKakao = rideShareKakao.value, shareType = rideShareType.value, shareKakaoTarget = rideShareKakaoTarget.value, shareMemo = rideShareMemo.value)
+            val alert = RideAlert(
+                id = editingRideAlert.value?.id ?: 0,
+                busNumber = bus.name, busRouteId = bus.routeId,
+                destinationStationName = dest.name, destinationStationId = dest.id, destinationStationSeq = dest.seq,
+                shareEmails = rideShareEmails.toList(), shareKakao = rideShareKakao.value, shareType = rideShareType.value,
+                shareKakaoTarget = rideShareKakaoTarget.value, shareMemo = rideShareMemo.value,
+                lastModified = System.currentTimeMillis()
+            )
             if (editingRideAlert.value == null) repository.insertRideAlert(alert) else repository.updateRideAlert(alert)
             resetRideForm()
         }
@@ -389,7 +448,12 @@ class BusViewModel @Inject constructor(
         val station = arrivalSelectedStation.value ?: return
         if (arrivalSelectedBuses.isEmpty()) return
         viewModelScope.launch {
-            val alert = ArrivalAlert(id = editingArrivalAlert.value?.id ?: 0, stationName = station.name, stationId = station.id, stationNo = station.no, targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList())
+            val alert = ArrivalAlert(
+                id = editingArrivalAlert.value?.id ?: 0,
+                stationName = station.name, stationId = station.id, stationNo = station.no,
+                targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList(),
+                lastModified = System.currentTimeMillis() // 수정 시각 갱신
+            )
             if (editingArrivalAlert.value == null) repository.insertArrivalAlert(alert) else repository.updateArrivalAlert(alert)
             resetArrivalForm()
         }

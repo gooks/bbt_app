@@ -306,15 +306,16 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             }
             val title = "버스도착알림 : ${alert.stationName}"
             if (results.isEmpty()) { updateArrivalNotification(alertId, title, "운행 정보 없음", "운행 정보 없음"); return 60000L }
-            val sorted = results.sortedBy { it.third }; val minTimeSec = sorted.first().third; val busName = sorted.first().first
-            val busRouteId = sorted.first().second
-            val plateNo = displayMessages[busRouteId]?.let { msg -> 
-                val start = msg.indexOf("(") + 1
-                val end = msg.indexOf(")")
-                if (start > 0 && end > start) msg.substring(start, end) else ""
-            } ?: ""
-            val plateTts = if (plateNo.isNotEmpty() && !plateNo.contains("정보없음")) ", 차량번호 ${plateNo.replace(Regex("[^0-9]"), "")}가" else "가"
+            val sorted = results.sortedBy { it.third };
+            val firstSortedItem = sorted.first()
+            val busName = firstSortedItem.first
+            val busRouteId = firstSortedItem.second
+            val minTimeSec = firstSortedItem.third
 
+            val detailMsg = detailMessages[busRouteId]
+            val plateNo = detailMsg?.substringAfter("버스(차량)번호 : $busName (")?.substringBefore(")") ?: ""
+
+            val plateTts = if (plateNo.isNotEmpty() && !plateNo.contains("정보없음")) ", 차량번호 ${Regex("""\d{4}$""").find(plateNo)?.value}가" else "가"
             if (minTimeSec <= 180) { 
                 val threshold = if (minTimeSec <= 65) 1 else 3
                 if (lastArrivalAlertStops[alertId] != threshold) { 

@@ -25,36 +25,139 @@ class BusRepository @Inject constructor(
     private val firestore = FirebaseFirestore.getInstance()
 
     // 동기화 관련
-    private fun getUserId(): String = mainPrefs.getString("google_user_id", "") ?: ""
+    private fun getUserId(): String {
+        val uid = mainPrefs.getString("google_user_id", "") ?: ""
+        android.util.Log.d("BusRepository", "getUserId: Retrieved UID=$uid")
+        return uid
+    }
 
-    suspend fun syncWithCloud() {
+    suspend fun syncWithCloud(): String? {
         val uid = getUserId()
-        if (uid.isEmpty()) return
+        if (uid.isEmpty()) {
+            logSystem("SYNC", "syncWithCloud: 사용자 ID가 비어 있습니다. 동기화 건너뛰기.")
+            return null
+        }
+        logSystem("SYNC", "syncWithCloud: 클라우드 동기화 시작 (사용자 ID: $uid)")
 
-        try {
-            // 1. 사용자 프로필(앱 비밀번호 등) 가져오기
+        return try {
+            // 1. 사용자 프로필(앱 비밀번호) 가져오기
+            logSystem("SYNC", "syncWithCloud: 사용자 프로필 가져오기 시도...")
             val userDoc = firestore.collection("users").document(uid).get().await()
-            if (userDoc.exists()) {
-                val cloudAppPass = userDoc.getString("google_app_password") ?: ""
-                if (cloudAppPass.isNotEmpty()) {
-                    mainPrefs.edit().putString("google_app_password", cloudAppPass).apply()
-                }
+            val cloudAppPass = if (userDoc.exists()) userDoc.getString("google_app_password") ?: "" else ""
+            if (cloudAppPass.isNotEmpty()) {
+                mainPrefs.edit().putString("google_app_password", cloudAppPass).apply()
+                logSystem("SYNC", "syncWithCloud: 클라우드에서 앱 비밀번호 업데이트됨.")
+            } else {
+                logSystem("SYNC", "syncWithCloud: 클라우드에 앱 비밀번호 없음 또는 비어 있음.")
             }
 
-            // 2. 알람 데이터 가져오기
-            val rideSnapshot = firestore.collection("users").document(uid).collection("ride_alerts").get().await()
-            val arrivalSnapshot = firestore.collection("users").document(uid).collection("arrival_alerts").get().await()
+            // Perform two-way sync for RideAlerts
+            logSystem("SYNC", "syncWithCloud: RideAlerts 양방향 동기화 시작.")
+            val localRideAlerts = busDao.getAllRideAlertsOnce()
+            syncAlerts(
+                collectionName = "ride_alerts",
+                localAlerts = localRideAlerts,
+                insertDb = { busDao.insertRideAlert(it) },
+                updateDb = { busDao.updateRideAlert(it) },
+                deleteLocalDb = { busDao.deleteRideAlertById(it) },
+                deleteCloudDb = { deleteRideAlertFromCloud(it) }
+            )
+            logSystem("SYNC", "syncWithCloud: RideAlerts 양방향 동기화 완료.")
 
-            val cloudRideAlerts = rideSnapshot.toObjects(RideAlert::class.java)
-            val cloudArrivalAlerts = arrivalSnapshot.toObjects(ArrivalAlert::class.java)
-
-            cloudRideAlerts.forEach { busDao.insertRideAlert(it) }
-            cloudArrivalAlerts.forEach { busDao.insertArrivalAlert(it) }
+            // Perform two-way sync for ArrivalAlerts
+            logSystem("SYNC", "syncWithCloud: ArrivalAlerts 양방향 동기화 시작.")
+            val localArrivalAlerts = busDao.getAllArrivalAlertsOnce()
+            syncAlerts(
+                collectionName = "arrival_alerts",
+                localAlerts = localArrivalAlerts,
+                insertDb = { busDao.insertArrivalAlert(it) },
+                updateDb = { busDao.updateArrivalAlert(it) },
+                deleteLocalDb = { busDao.deleteArrivalAlertById(it) },
+                deleteCloudDb = { deleteArrivalAlertFromCloud(it) }
+            )
+            logSystem("SYNC", "syncWithCloud: ArrivalAlerts 양방향 동기화 완료.")
             
-            logSystem("SYNC", "클라우드 동기화 완료 (이동:${cloudRideAlerts.size}, 도착:${cloudArrivalAlerts.size})")
+            logSystem("SYNC", "클라우드 양방향 동기화 전체 완료.")
+            cloudAppPass
         } catch (e: Exception) {
             logSystem("SYNC_FAIL", "동기화 실패: ${e.message}")
+            null
         }
+    }
+
+    private suspend inline fun <reified T> syncAlerts(
+        collectionName: String,
+        localAlerts: List<T>,
+        crossinline insertDb: suspend (T) -> Unit,
+        crossinline updateDb: suspend (T) -> Unit,
+        crossinline deleteLocalDb: suspend (Long) -> Unit,
+        crossinline deleteCloudDb: suspend (Long) -> Unit
+    ) where T : CloudSyncable {
+        val uid = getUserId(); if (uid.isEmpty()) {
+            logSystem("SYNC", "syncAlerts($collectionName): 사용자 ID가 비어 있습니다. 건너뛰기.")
+            return
+        }
+        logSystem("SYNC", "syncAlerts($collectionName): $collectionName 동기화 시작.")
+
+        val collection = firestore.collection("users").document(uid).collection(collectionName)
+        val cloudAlerts = collection.get().await().toObjects(T::class.java)
+        logSystem("SYNC", "syncAlerts($collectionName): 로컬 ${localAlerts.size}개, 클라우드 ${cloudAlerts.size}개 항목 감지.")
+
+        val localMap = localAlerts.associateBy { it.id }
+        val cloudMap = cloudAlerts.associateBy { it.id }
+
+        val mergedIds = mutableSetOf<Long>()
+
+        // Phase 1: Process Cloud alerts (add to local, update local, or update cloud from local)
+        cloudMap.values.forEach { cloudAlert ->
+            val cloudId = cloudAlert.id
+            val localAlert = localMap[cloudId]
+            if (localAlert != null) {
+                val localModified = localAlert.lastModified
+                val cloudModified = cloudAlert.lastModified
+                if (cloudModified > localModified) {
+                    updateDb(cloudAlert)
+                    logSystem("SYNC", "syncAlerts($collectionName): 클라우드가 최신, 로컬 업데이트: ID $cloudId")
+                } else if (localModified > cloudModified) {
+                    collection.document(cloudId.toString()).set(localAlert)
+                    logSystem("SYNC", "syncAlerts($collectionName): 로컬이 최신, 클라우드 업데이트: ID $cloudId")
+                } else {
+                    logSystem("SYNC", "syncAlerts($collectionName): 로컬/클라우드 동일: ID $cloudId")
+                }
+                mergedIds.add(cloudId)
+            } else {
+                insertDb(cloudAlert)
+                logSystem("SYNC", "syncAlerts($collectionName): 클라우드에만 존재, 로컬에 추가: ID $cloudId")
+                mergedIds.add(cloudId)
+            }
+        }
+
+        // Phase 2: Process Local-only alerts (upload to cloud)
+        localMap.values.forEach { localAlert ->
+            val localId = localAlert.id
+            if (!cloudMap.containsKey(localId)) {
+                collection.document(localId.toString()).set(localAlert)
+                logSystem("SYNC", "syncAlerts($collectionName): 로컬에만 존재, 클라우드에 업로드: ID $localId")
+                mergedIds.add(localId)
+            }
+        }
+
+        // Phase 3: Delete local alerts that are no longer in cloud and weren't processed in mergedIds
+        localMap.keys.forEach { localId ->
+            if (!mergedIds.contains(localId)) {
+                deleteLocalDb(localId)
+                logSystem("SYNC", "syncAlerts($collectionName): 클라우드에 없음, 로컬에서 삭제: ID $localId")
+            }
+        }
+
+        // Phase 4: Delete cloud alerts that are no longer in local and weren't processed in mergedIds
+        cloudMap.keys.forEach { cloudId ->
+            if (!mergedIds.contains(cloudId)) {
+                deleteCloudDb(cloudId)
+                logSystem("SYNC", "syncAlerts($collectionName): 로컬에 없음, 클라우드에서 삭제: ID $cloudId")
+            }
+        }
+        logSystem("SYNC", "syncAlerts($collectionName): $collectionName 동기화 완료.")
     }
 
     suspend fun saveGoogleAppPasswordToCloud(password: String) {
@@ -63,23 +166,49 @@ class BusRepository @Inject constructor(
     }
 
     private suspend fun uploadRideAlert(alert: RideAlert) {
-        val uid = getUserId(); if (uid.isEmpty()) return
-        firestore.collection("users").document(uid).collection("ride_alerts").document(alert.id.toString()).set(alert)
+        val uid = getUserId(); if (uid.isEmpty()) {
+            logSystem("SYNC", "uploadRideAlert: 사용자 ID가 비어 있습니다. 업로드 건너뛰기.")
+            return
+        }
+        logSystem("SYNC", "uploadRideAlert: RideAlert 업로드 시도: ID=${alert.id}, UID=$uid")
+        val alertToUpload = alert.copy(
+            shareEmails = emptyList(),
+            shareKakao = false,
+            shareKakaoTarget = "",
+            shareMemo = ""
+        )
+        firestore.collection("users").document(uid).collection("ride_alerts").document(alert.id.toString()).set(alertToUpload)
+        logSystem("SYNC", "uploadRideAlert: RideAlert 업로드 완료: ID=${alert.id}")
     }
 
     private suspend fun uploadArrivalAlert(alert: ArrivalAlert) {
-        val uid = getUserId(); if (uid.isEmpty()) return
+        val uid = getUserId(); if (uid.isEmpty()) {
+            logSystem("SYNC", "uploadArrivalAlert: 사용자 ID가 비어 있습니다. 업로드 건너뛰기.")
+            return
+        }
+        logSystem("SYNC", "uploadArrivalAlert: ArrivalAlert 업로드 시도: ID=${alert.id}, UID=$uid")
         firestore.collection("users").document(uid).collection("arrival_alerts").document(alert.id.toString()).set(alert)
+        logSystem("SYNC", "uploadArrivalAlert: ArrivalAlert 업로드 완료: ID=${alert.id}")
     }
 
     private suspend fun deleteRideAlertFromCloud(id: Long) {
-        val uid = getUserId(); if (uid.isEmpty()) return
+        val uid = getUserId(); if (uid.isEmpty()) {
+            logSystem("SYNC", "deleteRideAlertFromCloud: 사용자 ID가 비어 있습니다. 삭제 건너뛰기.")
+            return
+        }
+        logSystem("SYNC", "deleteRideAlertFromCloud: RideAlert 클라우드에서 삭제 시도: ID=$id, UID=$uid")
         firestore.collection("users").document(uid).collection("ride_alerts").document(id.toString()).delete()
+        logSystem("SYNC", "deleteRideAlertFromCloud: RideAlert 클라우드에서 삭제 완료: ID=$id")
     }
 
     private suspend fun deleteArrivalAlertFromCloud(id: Long) {
-        val uid = getUserId(); if (uid.isEmpty()) return
+        val uid = getUserId(); if (uid.isEmpty()) {
+            logSystem("SYNC", "deleteArrivalAlertFromCloud: 사용자 ID가 비어 있습니다. 삭제 건너뛰기.")
+            return
+        }
+        logSystem("SYNC", "deleteArrivalAlertFromCloud: ArrivalAlert 클라우드에서 삭제 시도: ID=$id, UID=$uid")
         firestore.collection("users").document(uid).collection("arrival_alerts").document(id.toString()).delete()
+        logSystem("SYNC", "deleteArrivalAlertFromCloud: ArrivalAlert 클라우드에서 삭제 완료: ID=${id}")
     }
 
     private fun updateApiCount(tag: String) {
@@ -191,7 +320,10 @@ class BusRepository @Inject constructor(
     suspend fun deleteRideHistory(history: RideHistory) = busDao.deleteRideHistory(history)
 
     // Logs
-    suspend fun logSystem(tag: String, message: String) = busDao.insertSystemLog(SystemLog(tag = tag, message = message))
+    suspend fun logSystem(tag: String, message: String) {
+        android.util.Log.d("BusRepository", "[$tag] $message")
+        busDao.insertSystemLog(SystemLog(tag = tag, message = message))
+    }
     fun getSystemLogs(): Flow<List<SystemLog>> = busDao.getRecentSystemLogs()
     suspend fun clearLogs() = busDao.clearSystemLogs()
 

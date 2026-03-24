@@ -121,10 +121,8 @@ fun SettingsScreen(viewModel: BusViewModel, onBack: () -> Unit) {
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { 
-                                scope.launch {
-                                    viewModel.onGoogleSignInSuccess(viewModel.googleEmail.value, viewModel.googleEmail.value)
-                                    android.widget.Toast.makeText(context, "데이터 동기화가 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                                }
+                                viewModel.forceSyncAndRefresh()
+                                android.widget.Toast.makeText(context, "클라우드 데이터 동기화 완료!", android.widget.Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -239,28 +237,7 @@ fun SettingsScreen(viewModel: BusViewModel, onBack: () -> Unit) {
             }
         }
         
-        // 4. 디버그 정보 (키 해시 확인용)
-        Spacer(modifier = Modifier.height(24.dp))
-        Divider(color = Color.LightGray.copy(alpha = 0.5f))
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("디버그 정보 (카카오 연동 오류 시 확인)", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("KakaoKeyHash", com.czt.bbt.BusApp.keyHash)
-                clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(context, "키 해시가 복사되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-            },
-            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.05f))
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text("카카오 키 해시 (클릭하여 복사):", fontSize = 11.sp, color = Color.Gray)
-                Text(com.czt.bbt.BusApp.keyHash, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("위 값을 카카오 개발자 콘솔 안드로이드 플랫폼에 등록하세요.", fontSize = 10.sp, color = Color.DarkGray, modifier = Modifier.padding(top = 4.dp))
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
