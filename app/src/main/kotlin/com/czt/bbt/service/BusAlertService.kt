@@ -59,11 +59,13 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     private var mode: Mode = Mode.IDLE
     private var activeRideAlert: RideAlert? = null
+    private var rideJob: Job? = null
     private val activeArrivalJobs = mutableMapOf<Long, Job>()
     private val activeArrivalAlerts = mutableMapOf<Long, ArrivalAlert>()
     private val routeStationsCache = mutableMapOf<String, List<CachedRouteStation>>()
 
     private val lastArrivalAlertStops = mutableMapOf<Long, Int>()
+    private val lastArrivalAlertPlate = mutableMapOf<Long, String>()
     private val lastAnnouncedRouteId = mutableMapOf<Long, String>()
     private var lastApproachingPlate: String? = null // 최근 도착 안내된 차량 번호
     private var lastApproachingRouteId: String? = null // 최근 도착 안내된 노선 ID
@@ -250,6 +252,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun revertToWaitingStatus() { potentialBoardingTime = 0L; updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}"); sensorManager.unregisterListener(this); sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL) }
 
     private fun startArrivalMode(alertId: Long) {
+        activeArrivalJobs[alertId]?.cancel()
         serviceScope.launch {
             val alerts = repository.getAllArrivalAlerts().first(); val alert = alerts.find { it.id == alertId } ?: return@launch
             activeArrivalAlerts[alertId] = alert
@@ -257,7 +260,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             val idList = currentIds.split(",").filter { it.isNotEmpty() }.toMutableList()
             if (!idList.contains(alertId.toString())) { idList.add(alertId.toString()); prefs.edit().putString("active_arrival_ids", idList.joinToString(",")).commit() }
             updateArrivalNotification(alertId, "버스도착알림 : ${alert.stationName}", "도착 정보 확인 중...", "도착 정보 확인 중...")
-            notifyWidgetUpdate(); lastArrivalAlertStops[alertId] = -1
+            notifyWidgetUpdate(); lastArrivalAlertStops[alertId] = -1; lastArrivalAlertPlate[alertId] = ""
             val job = launch { while (isActive) { val nextDelay = checkArrivalStatus(alertId); delay(nextDelay) } }
             activeArrivalJobs[alertId] = job
         }
@@ -279,7 +282,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                         detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.locationNo1.toIntSafe()}정거장 전 ${item.stationNm1} $stateStr"
                         results.add(Triple(busName, rId, p1))
                     } else {
-                        val stations = repository.getBusRouteStations(rId)
+                        val stations = routeStationsCache[rId] ?: repository.getBusRouteStations(rId).also { routeStationsCache[rId] = it }
                         val myStation = stations.find { it.stationId == alert.stationId } 
                             ?: stations.find { it.mobileNo == alert.stationNo }
                             ?: stations.find { it.stationName == alert.stationName }
@@ -316,10 +319,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                                 results.add(Triple(busName, rId, totalEstSec))
                             }
                         } else {
-                            // seq를 못 찾은 경우에 대한 폴백
                             displayMessages[rId] = "[$busName] 운행 정보 확인 불가"
                             detailMessages[rId] = "- 버스(차량)번호 : $busName\n- 상태 : 정류소 정보 매칭 실패"
-                            results.add(Triple(busName, rId, 999999)) // 리스트가 비지 않도록 추가
+                            results.add(Triple(busName, rId, 999999))
                         }
                     }
                 } catch (e: Exception) { }
@@ -334,6 +336,12 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
             val detailMsg = detailMessages[busRouteId]
             val plateNo = detailMsg?.substringAfter("버스(차량)번호 : $busName (")?.substringBefore(")") ?: ""
+
+            // 버스가 바뀌었거나 거리가 멀어지면 알림 상태 초기화
+            if (lastArrivalAlertPlate[alertId] != plateNo || minTimeSec > 300) {
+                lastArrivalAlertStops[alertId] = -1
+                lastArrivalAlertPlate[alertId] = plateNo
+            }
 
             val plateTts = if (plateNo.isNotEmpty() && !plateNo.contains("정보없음")) ", 차량번호 ${Regex("""\d{4}$""").find(plateNo)?.value}가" else "가"
             if (minTimeSec <= 180) { 

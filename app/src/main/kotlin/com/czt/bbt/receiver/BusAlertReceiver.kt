@@ -20,16 +20,9 @@ class BusAlertReceiver : BroadcastReceiver() {
 
         when (action) {
             "com.czt.bbt.START_RIDE" -> {
-                val activeRideId = prefs.getLong("active_ride_id", -1L)
-                if (activeRideId == alertId) return // 이미 동일한 이동 알림 실행 중
-
                 startService(context, BusAlertService.ACTION_START_RIDE, alertId)
             }
             "com.czt.bbt.START_ARRIVAL" -> {
-                val activeArrivalIds = prefs.getString("active_arrival_ids", "") ?: ""
-                val idList = activeArrivalIds.split(",").filter { it.isNotEmpty() }
-                if (idList.contains(alertId.toString())) return // 이미 해당 도착 알림 실행 중
-
                 startService(context, BusAlertService.ACTION_START_ARRIVAL, alertId)
             }
             "com.czt.bbt.STOP_ALERT" -> {
