@@ -72,6 +72,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private var isBoardingDetected = false
     private var isAlightingDetected = false
     private var potentialBoardingTime: Long = 0L 
+    private var potentialPlateNo: String? = null // 승차 확인 중 캡처된 차량번호
     private var currentBusPlate: String? = null
     private var boardingTime: Long = 0
     private var lastLocation: Location? = null
@@ -214,6 +215,25 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     val nearest = stations.minByOrNull { val r = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, it.y, it.x, r); r[0] }
                     boardingStationName = nearest?.stationName; updateNotification("승차 대기 중: ${boardingStationName ?: "위치 확인 중"}")
                     sensorManager.registerListener(this@BusAlertService, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
+                    
+                    // 승차 전까지 주기적으로 가장 가까운 버스 갱신 루틴
+                    launch {
+                        while (mode == Mode.RIDE && !isBoardingDetected) {
+                            try {
+                                val locRes = repository.getBusLocations(alert.busRouteId)
+                                val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
+                                val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
+                                
+                                // 내 정류장(boardingSeq) 이전에 있는 가장 가까운 버스 찾기
+                                val nearestBus = busLocs.filter { it.stationSeq < boardingSeq }.maxByOrNull { it.stationSeq }
+                                if (nearestBus != null) {
+                                    lastApproachingPlate = nearestBus.plateNo
+                                    Log.d(TAG, "Approaching bus updated: $lastApproachingPlate (seq: ${nearestBus.stationSeq} / mine: $boardingSeq)")
+                                }
+                            } catch (e: Exception) { }
+                            delay(20000) // 20초마다 갱신
+                        }
+                    }
                 } ?: stopSelf()
             } catch (e: Exception) { stopSelf() }
         }
@@ -346,7 +366,11 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     override fun onSensorChanged(event: SensorEvent?) {
         if (mode == Mode.RIDE && !isBoardingDetected && event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             val x = event.values[0]; val y = event.values[1]; val z = event.values[2]; val acc = sqrt(x*x + y*y + z*z)
-            if (acc > 13 && potentialBoardingTime == 0L) { potentialBoardingTime = System.currentTimeMillis(); updateNotification("승차 확인 중...") }
+            if (acc > 13 && potentialBoardingTime == 0L) { 
+                potentialBoardingTime = System.currentTimeMillis()
+                potentialPlateNo = lastApproachingPlate // 승차 진동 감지 시점의 다가오는 차량번호 캡처
+                updateNotification("승차 확인 중...") 
+            }
         }
     }
 
@@ -405,8 +429,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
                 lastStationIndex = boardingSeq
                 
-                // 안내된 차량번호 우선 매칭
-                val myBus = locs.find { it.plateNo == lastApproachingPlate }
+                // 1. 진동 감지 시 캡처된 차량번호 우선, 2. 최근 안내된 차량번호, 3. 현재 위치 근접 차량 순으로 매칭
+                val myBus = locs.find { it.plateNo == potentialPlateNo }
+                    ?: locs.find { it.plateNo == lastApproachingPlate }
                     ?: locs.filter { it.stationSeq >= boardingSeq - 1 && it.stationSeq <= boardingSeq + 2 }.minByOrNull { Math.abs(it.stationSeq - boardingSeq) }
                     ?: locs.minByOrNull { Math.abs(it.stationSeq - boardingSeq) }
                 
