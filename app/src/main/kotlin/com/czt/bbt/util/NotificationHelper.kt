@@ -10,7 +10,7 @@ import com.kakao.sdk.template.model.*
 object NotificationHelper {
 
     fun sendKakaoMessage(context: Context, busNo: String, plateNo: String, time: String, station: String, type: String, summary: String = "") {
-        val title = "[버스알림] $type 안내"
+        val title = "[버스알림] $type 알림"
         val description = if (summary.isNotEmpty()) summary else "버스 번호: ${busNo}번\n차량 번호: $plateNo\n시간: $time\n정류장: $station"
 
         val defaultFeed = FeedTemplate(

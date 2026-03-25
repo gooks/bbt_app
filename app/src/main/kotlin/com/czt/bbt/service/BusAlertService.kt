@@ -465,22 +465,42 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     }
 
     private fun shareStatus(type: String, busNo: String, plateNo: String, time: Long, station: String, summary: String = "", extraInfo: String = "") {
-        val alert = activeRideAlert ?: return; val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
-        serviceScope.launch {
-            val allHistories = repository.getAllRideHistories().first()
-            val filteredLogs = allHistories.filter { it.busNumber == busNo }.sortedByDescending { it.boardingTime }
-            val prev = filteredLogs.filter { it.boardingTime != (if (type == "승차") time else boardingTime) }.take(3)
-            val hist = if (prev.isNotEmpty()) "\n\n[이 노선 과거 이용 기록]\n" + prev.joinToString("\n") { "• ${it.date} ${SimpleDateFormat("HH:mm").format(Date(it.boardingTime))} ${it.plateNumber} (${it.boardingStationName} → ${it.alightStationName})" } else ""
-            
-            val timeLabel = if (type == "하차") "하차시간" else "탑승시간"
-            val stationLabel = if (type == "하차") "하차정류장" else "승차정류장"
-            val targetLabel = if (type == "하차") "승차정류장" else "목적정류장"
-            val targetStation = if (type == "하차") (boardingStationName ?: "") else alert.destinationStationName
+        val alert = activeRideAlert ?: return
+        val routeId = alert.busRouteId
+        val stations = routeStationsCache[routeId] ?: emptyList()
 
-            val main = if (summary.isNotEmpty()) summary else "버스: ${busNo}번 ($plateNo)\n일자: ${SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(time))}\n$timeLabel: $timeStr\n${if (extraInfo.isNotEmpty()) "$extraInfo\n" else ""}$stationLabel: $station\n$targetLabel: $targetStation"
-            
-            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, type, main + hist) }
-            if (alert.shareKakao) com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, type, main + hist)
+        val getMobileNo = { name: String -> stations.find { it.stationName == name }?.mobileNo?.let { "($it)" } ?: "" }
+
+        serviceScope.launch {
+            val dateStr = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(time))
+            val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
+
+            val main = if (type == "승차") {
+                val bStation = boardingStationName ?: ""
+                val dStation = alert.destinationStationName
+                "<승차 시 내용>\n" +
+                "버스: ${busNo}번 ($plateNo)\n" +
+                "일자: $dateStr\n" +
+                "승차시간: $timeStr\n" +
+                "$extraInfo\n" +
+                "승차정류장: $bStation${getMobileNo(bStation)}\n" +
+                "목적정류장: $dStation${getMobileNo(dStation)}"
+            } else {
+                val bStation = boardingStationName ?: ""
+                val dStation = station // alightStation
+                val bTimeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(boardingTime))
+                val diffMin = (time - boardingTime) / 60000
+                val durationStr = if (diffMin >= 60) "${diffMin / 60}시간 ${diffMin % 60}분 소요" else "${diffMin}분 소요"
+
+                "<하차 시 내용>\n" +
+                "버스: ${busNo}번 ($plateNo)\n" +
+                "일자: $dateStr\n" +
+                "탑승시간: $bTimeStr ~ $timeStr ($durationStr)\n" +
+                "이동구간: $bStation${getMobileNo(bStation)} ~ $dStation${getMobileNo(dStation)}"
+            }
+
+            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, type, main) }
+            if (alert.shareKakao) com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, type, main)
         }
     }
 
