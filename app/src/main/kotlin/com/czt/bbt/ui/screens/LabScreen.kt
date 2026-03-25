@@ -43,6 +43,17 @@ fun LabScreen(
                 Text("설정", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
                 
                 Card(
+                    modifier = Modifier.fillMaxWidth().clickable { currentSubScreen = "HISTORY_LIST" }.padding(vertical = 8.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("이동이력", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("승/하차 시 저장된 상세 이동 이력을 조회, 삭제 및 CSV로 출력합니다.") },
+                        trailingContent = { Icon(Icons.Default.List, null) }
+                    )
+                }
+
+                Card(
                     modifier = Modifier.fillMaxWidth().clickable { currentSubScreen = "SETTINGS" }.padding(vertical = 8.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
@@ -83,6 +94,7 @@ fun LabScreen(
             LaunchedEffect(Unit) { viewModel.checkKakaoLoginStatus() }
             SettingsScreen(viewModel) { currentSubScreen = "MENU" }
         }
+        "HISTORY_LIST" -> RideHistoryListScreen(viewModel) { currentSubScreen = "MENU" }
         "TTS" -> TtsTestScreen(tts, wordRange, availableVoices, selectedVoice) { currentSubScreen = "MENU" }
         "API" -> ApiUsageScreen(viewModel) { currentSubScreen = "MENU" }
     }

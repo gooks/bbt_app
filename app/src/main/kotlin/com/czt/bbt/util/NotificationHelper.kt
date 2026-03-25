@@ -93,4 +93,61 @@ object NotificationHelper {
             }
         }
     }
+
+    fun sendEmailWithAttachment(
+        context: Context, 
+        userEmail: String, 
+        appPass: String, 
+        toEmail: String, 
+        subject: String, 
+        htmlBody: String, 
+        attachmentName: String, 
+        attachmentBytes: ByteArray
+    ) {
+        Thread {
+            try {
+                val props = java.util.Properties().apply {
+                    put("mail.smtp.host", "smtp.gmail.com")
+                    put("mail.smtp.socketFactory.port", "465")
+                    put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
+                    put("mail.smtp.auth", "true")
+                    put("mail.smtp.port", "465")
+                }
+
+                val session = javax.mail.Session.getDefaultInstance(props, object : javax.mail.Authenticator() {
+                    override fun getPasswordAuthentication(): javax.mail.PasswordAuthentication {
+                        return javax.mail.PasswordAuthentication(userEmail, appPass)
+                    }
+                })
+
+                val message = javax.mail.internet.MimeMessage(session).apply {
+                    setFrom(javax.mail.internet.InternetAddress(userEmail))
+                    addRecipient(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress(toEmail))
+                    setSubject(subject)
+                }
+
+                // 1. 본문 Part (HTML)
+                val messageBodyPart = javax.mail.internet.MimeBodyPart()
+                messageBodyPart.setContent(htmlBody, "text/html; charset=utf-8")
+
+                // 2. 첨부파일 Part
+                val attachmentPart = javax.mail.internet.MimeBodyPart()
+                val dataSource = javax.mail.util.ByteArrayDataSource(attachmentBytes, "text/csv")
+                attachmentPart.dataHandler = javax.activation.DataHandler(dataSource)
+                attachmentPart.fileName = attachmentName
+
+                // 3. 합치기
+                val multipart = javax.mail.internet.MimeMultipart()
+                multipart.addBodyPart(messageBodyPart)
+                multipart.addBodyPart(attachmentPart)
+
+                message.setContent(multipart)
+
+                javax.mail.Transport.send(message)
+                Log.i("Email", "이력 메일 전송 성공 (첨부파일 포함)")
+            } catch (e: Exception) {
+                Log.e("Email", "이력 메일 전송 실패: ${e.message}")
+            }
+        }.start()
+    }
 }

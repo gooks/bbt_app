@@ -483,6 +483,151 @@ class BusViewModel @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
     }
 
+    // 이동이력 관리 UI 상태
+    var historyBusNoFilter = mutableStateOf("")
+    var historyStartDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(System.currentTimeMillis() - 5 * 24 * 60 * 60 * 1000L)))
+    var historyEndDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date()))
+    val filteredHistory = mutableStateListOf<RideHistory>()
+    val historySelectedIds = mutableStateListOf<Long>()
+
+    fun searchRideHistory() {
+        viewModelScope.launch {
+            isLoading.value = true
+            try {
+                // 1. 서버와 양방향 동기화 시도 (오프라인이면 내부에서 스킵됨)
+                repository.reconcileWithCloud()
+            } catch (e: Exception) {
+                android.util.Log.e("BusViewModel", "조회 전 동기화 실패(로컬로 계속): ${e.message}")
+            }
+
+            try {
+                // 2. 동기화 완료 후(혹은 실패 후) 로컬 DB에서 필터링 조회
+                val result = repository.getFilteredRideHistories(historyBusNoFilter.value, historyStartDate.value, historyEndDate.value)
+                filteredHistory.clear()
+                filteredHistory.addAll(result)
+                historySelectedIds.clear()
+            } catch (e: Exception) { 
+                errorMessage.value = "이력 조회 실패" 
+            } finally { 
+                isLoading.value = false 
+            }
+        }
+    }
+
+    fun deleteSelectedHistories() {
+        val ids = historySelectedIds.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            repository.deleteRideHistories(ids)
+            searchRideHistory()
+        }
+    }
+
+    fun syncHistories() {
+        viewModelScope.launch {
+            isLoading.value = true
+            try {
+                repository.reconcileWithCloud()
+                searchRideHistory()
+                android.widget.Toast.makeText(context, "서버와 동기화가 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                errorMessage.value = "서버 전송 실패: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
+    fun exportToCsv(isAll: Boolean) {
+        viewModelScope.launch {
+            try {
+                val data = if (isAll) repository.getAllRideHistoriesSorted() else filteredHistory.reversed() // CSV는 과거순
+                if (data.isEmpty()) { errorMessage.value = "출력할 데이터가 없습니다."; return@launch }
+
+                val fileName = "RideHistory_${java.text.SimpleDateFormat("yyyyMMdd_HHmm").format(java.util.Date())}.csv"
+                val contentValues = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                }
+
+                val uri = context.contentResolver.insert(android.provider.MediaStore.Files.getContentUri("external"), contentValues)
+                uri?.let {
+                    context.contentResolver.openOutputStream(it)?.use { os ->
+                        val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(os, "EUC-KR")) // 엑셀 호환성
+                        writer.write("일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID")
+                        writer.newLine()
+                        data.forEach { h ->
+                            val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
+                            val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
+                            val row = listOf(
+                                h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "",
+                                h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName,
+                                h.alightStationNo ?: "", h.alightStationName ?: "",
+                                h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: ""
+                            ).joinToString(",")
+                            writer.write(row)
+                            writer.newLine()
+                        }
+                        writer.flush()
+                    }
+                    android.widget.Toast.makeText(context, "다운로드 폴더에 CSV가 저장되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) { errorMessage.value = "CSV 저장 실패: ${e.message}" }
+        }
+    }
+
+    fun sendHistoryEmail() {
+        viewModelScope.launch {
+            if (!isGoogleLoggedIn.value || googleAppPassword.value.isEmpty()) {
+                errorMessage.value = "설정에서 구글 계정과 앱 비밀번호를 먼저 설정해주세요."
+                return@launch
+            }
+            isLoading.value = true
+            try {
+                val data = repository.getAllRideHistoriesSorted()
+                if (data.isEmpty()) { errorMessage.value = "전송할 데이터가 없습니다."; return@launch }
+
+                // 1. CSV 데이터 생성 (동일한 15개 컬럼)
+                val csvHeader = "일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID\n"
+                val csvBody = data.joinToString("\n") { h ->
+                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
+                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
+                    listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",")
+                }
+                val csvBytes = (csvHeader + csvBody).toByteArray(java.nio.charset.Charset.forName("EUC-KR"))
+
+                // 2. HTML 표 생성 (동일한 15개 컬럼)
+                val htmlTable = StringBuilder("<table border='1' style='border-collapse:collapse; width:100%; font-size:11px;'>")
+                htmlTable.append("<tr style='background-color:#f2f2f2;'><th>일자</th><th>요일</th><th>승차</th><th>하차</th><th>소요</th><th>버스</th><th>차량번호</th><th>승차번호</th><th>승차정류장</th><th>하차번호</th><th>하차정류장</th><th>버스ID</th><th>차량ID</th><th>승차ID</th><th>하차ID</th></tr>")
+                data.reversed().forEach { h -> 
+                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
+                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: "-"
+                    val durationStr = h.durationMinutes?.let { "${it}분" } ?: "-"
+                    htmlTable.append("<tr>")
+                    listOf(h.date, h.dayOfWeek, boardingStr, alightStr, durationStr, h.busNumber, h.plateNumber ?: "-", h.boardingStationNo ?: "-", h.boardingStationName, h.alightStationNo ?: "-", h.alightStationName ?: "-", h.busRouteId, h.vehicleId ?: "-", h.boardingStationId, h.alightStationId ?: "-").forEach { 
+                        htmlTable.append("<td style='padding:4px;'>$it</td>")
+                    }
+                    htmlTable.append("</tr>")
+                }
+                htmlTable.append("</table>")
+
+                val subject = "[BBT] 전체 이동 이력 보고서 (${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())})"
+                val content = "<h3>안녕하세요, BBT 이동 이력 보고서입니다.</h3><p>전체 이동 이력을 표와 CSV 첨부파일로 보내드립니다.</p><br/>$htmlTable"
+
+                com.czt.bbt.util.NotificationHelper.sendEmailWithAttachment(
+                    context, googleEmail.value, googleAppPassword.value, googleEmail.value, 
+                    subject, content, "RideHistory.csv", csvBytes
+                )
+                android.widget.Toast.makeText(context, "메일이 전송되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                errorMessage.value = "메일 전송 실패: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
     fun deleteRideAlert(alert: RideAlert) = viewModelScope.launch { repository.deleteRideAlert(alert) }
     fun deleteArrivalAlert(alert: ArrivalAlert) = viewModelScope.launch { repository.deleteArrivalAlert(alert) }
     fun deleteHistory(history: RideHistory) = viewModelScope.launch { repository.deleteRideHistory(history) }

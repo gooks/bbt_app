@@ -51,11 +51,20 @@ interface BusDao {
     @Query("SELECT * FROM ride_histories ORDER BY boardingTime DESC")
     fun getAllRideHistories(): Flow<List<RideHistory>>
 
+    @Query("SELECT * FROM ride_histories WHERE (busNumber LIKE '%' || :busNo || '%') AND (date BETWEEN :startDate AND :endDate) ORDER BY date DESC, boardingTime DESC")
+    suspend fun getFilteredRideHistories(busNo: String, startDate: String, endDate: String): List<RideHistory>
+
+    @Query("SELECT * FROM ride_histories ORDER BY date ASC, boardingTime ASC")
+    suspend fun getAllRideHistoriesOnceSorted(): List<RideHistory>
+
     @Update
     suspend fun updateRideHistory(history: RideHistory)
 
     @Delete
     suspend fun deleteRideHistory(history: RideHistory)
+
+    @Query("DELETE FROM ride_histories WHERE id IN (:ids)")
+    suspend fun deleteRideHistoriesByIds(ids: List<Long>)
 
     // Route Station Cache
     @Insert(onConflict = OnConflictStrategy.REPLACE)

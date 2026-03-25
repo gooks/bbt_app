@@ -159,6 +159,7 @@ class BusRepository @Inject constructor(
                 when (change.objectType) {
                     "RideAlert" -> processPendingChange<RideAlert>(change, "ride_alerts")
                     "ArrivalAlert" -> processPendingChange<ArrivalAlert>(change, "arrival_alerts")
+                    "RideHistory" -> processPendingChange<RideHistory>(change, "histories")
                 }
             } catch (e: Exception) {
                 logSystem("RECONCILE_FAIL", "Failed to process change ${change.id}: ${e.message}")
@@ -204,6 +205,7 @@ class BusRepository @Inject constructor(
         logSystem("FULL_SYNC", "Starting full two-way sync.")
         syncCollection<RideAlert>("ride_alerts", busDao::getAllRideAlertsOnce, busDao::insertRideAlert, busDao::updateRideAlert, busDao::deleteRideAlertById)
         syncCollection<ArrivalAlert>("arrival_alerts", busDao::getAllArrivalAlertsOnce, busDao::insertArrivalAlert, busDao::updateArrivalAlert, busDao::deleteArrivalAlertById)
+        syncCollection<RideHistory>("histories", { busDao.getAllRideHistoriesOnceSorted() }, busDao::insertRideHistory, busDao::updateRideHistory, { id -> busDao.deleteRideHistoriesByIds(listOf(id)) })
         logSystem("FULL_SYNC", "Full two-way sync complete.")
     }
 
@@ -329,6 +331,25 @@ class BusRepository @Inject constructor(
             logSystem("OFFLINE", "Queuing DELETE ArrivalAlert ID ${alert.id}")
             busDao.insertPendingChange(PendingChange(type = "DELETE", objectType = "ArrivalAlert", objectId = alert.id, objectJson = null, timestamp = System.currentTimeMillis()))
         }
+    }
+
+    suspend fun getFilteredRideHistories(busNo: String, startDate: String, endDate: String): List<RideHistory> {
+        return busDao.getFilteredRideHistories(busNo, startDate, endDate)
+    }
+
+    suspend fun deleteRideHistories(ids: List<Long>) {
+        busDao.deleteRideHistoriesByIds(ids)
+        ids.forEach { id ->
+            if (isOnline()) {
+                deleteCloudObject("histories", id)
+            } else {
+                busDao.insertPendingChange(PendingChange(type = "DELETE", objectType = "RideHistory", objectId = id, objectJson = null, timestamp = System.currentTimeMillis()))
+            }
+        }
+    }
+
+    suspend fun getAllRideHistoriesSorted(): List<RideHistory> {
+        return busDao.getAllRideHistoriesOnceSorted()
     }
 
     private suspend fun <T : CloudSyncable> uploadCloudObject(collectionName: String, alert: T) {
