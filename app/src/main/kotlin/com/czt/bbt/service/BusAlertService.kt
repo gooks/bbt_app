@@ -234,8 +234,8 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                                 val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
                                 val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
                                 
-                                // 내 정류장(boardingSeq) 이전에 있는 가장 가까운 버스 찾기
-                                val nearestBus = busLocs.filter { it.stationSeq < boardingSeq }.maxByOrNull { it.stationSeq }
+                                // 내 정류장(boardingSeq)까지 도달한 가장 가까운 버스 찾기 (정류장 도착 포함)
+                                val nearestBus = busLocs.filter { it.stationSeq <= boardingSeq }.maxByOrNull { it.stationSeq }
                                 if (nearestBus != null) {
                                     lastApproachingPlate = nearestBus.plateNo
                                     Log.d(TAG, "Approaching bus updated: $lastApproachingPlate (seq: ${nearestBus.stationSeq} / mine: $boardingSeq)")
@@ -477,9 +477,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 boardingStationNo = currentBoardingStation?.mobileNo?.trim()
                 val bStationId = currentBoardingStation?.stationId ?: ""
 
-                val myBus = locs.find { it.plateNo == potentialPlateNo }
-                    ?: locs.find { it.plateNo == lastApproachingPlate }
-                    ?: locs.filter { it.stationSeq >= boardingSeq - 1 && it.stationSeq <= boardingSeq + 2 }.minByOrNull { Math.abs(it.stationSeq - boardingSeq) }
+                val myBus = locs.find { it.plateNo == potentialPlateNo && potentialPlateNo != null }
+                    ?: locs.find { it.plateNo == lastApproachingPlate && lastApproachingPlate != null }
+                    ?: locs.filter { it.stationSeq >= boardingSeq - 1 && it.stationSeq <= boardingSeq + 1 }.minByOrNull { Math.abs(it.stationSeq - boardingSeq) }
                     ?: locs.minByOrNull { Math.abs(it.stationSeq - boardingSeq) }
                 
                 var estMin = 0
