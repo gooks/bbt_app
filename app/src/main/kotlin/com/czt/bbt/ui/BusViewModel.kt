@@ -115,11 +115,11 @@ class BusViewModel @Inject constructor(
             android.util.Log.w("BusViewModel", "forceSyncAndRefresh: UID is empty, skipping sync.")
             return
         }
-        
+
         viewModelScope.launch {
-            // 1. 클라우드에서 데이터 가져오기
-            repository.syncWithCloud()
-            
+            // 1. 새 동기화 로직 호출
+            repository.reconcileWithCloud()
+
             // 2. 동기화 후 SharedPreferences에서 최신 정보로 UI 상태 강제 갱신
             googleEmail.value = prefs.getString("google_email", "") ?: ""
             googleAppPassword.value = prefs.getString("google_app_password", "") ?: ""
@@ -129,18 +129,6 @@ class BusViewModel @Inject constructor(
 
             // 3. 카카오 로그인 상태도 갱신
             checkKakaoLoginStatus()
-        }
-    }
-
-    private fun syncDataWithCloud() {
-        val uid = googleUserId.value
-        if (uid.isEmpty()) return
-        
-        viewModelScope.launch {
-            val cloudAppPass = repository.syncWithCloud()
-            if (cloudAppPass != null) {
-                googleAppPassword.value = cloudAppPass
-            }
         }
     }
 

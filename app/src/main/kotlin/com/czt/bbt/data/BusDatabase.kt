@@ -81,11 +81,21 @@ interface BusDao {
     suspend fun clearAllRideAlerts()
     @Query("DELETE FROM arrival_alerts")
     suspend fun clearAllArrivalAlerts()
+
+    // Pending Changes
+    @Insert
+    suspend fun insertPendingChange(pendingChange: PendingChange)
+
+    @Query("SELECT * FROM pending_changes ORDER BY timestamp ASC")
+    suspend fun getPendingChanges(): List<PendingChange>
+
+    @Query("DELETE FROM pending_changes")
+    suspend fun clearPendingChanges()
 }
 
 @Database(
-    entities = [RideAlert::class, ArrivalAlert::class, RideHistory::class, SystemLog::class, CachedRouteStation::class],
-    version = 9,
+    entities = [RideAlert::class, ArrivalAlert::class, RideHistory::class, SystemLog::class, CachedRouteStation::class, PendingChange::class],
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

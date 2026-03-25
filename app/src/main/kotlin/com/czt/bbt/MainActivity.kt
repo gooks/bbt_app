@@ -3,6 +3,10 @@ package com.czt.bbt
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -20,20 +24,48 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
+import com.czt.bbt.data.BusRepository
 import com.czt.bbt.ui.BusAppScreen
 import com.czt.bbt.ui.BusViewModel
+import com.czt.bbt.util.ShortcutUtil
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import java.util.*
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
+
+    @Inject
+    lateinit var repository: BusRepository
 
     private val viewModel: BusViewModel by viewModels()
     private var tts: TextToSpeech? = null
     private val _currentWordRange = mutableStateOf<Pair<Int, Int>?>(null)
     private val _availableVoices = mutableStateListOf<Voice>()
     private val _selectedVoice = mutableStateOf<Voice?>(null)
+
+    private lateinit var connectivityManager: ConnectivityManager
+    private val networkCallback by lazy {
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                android.util.Log.d("NetworkCallback", "Network Available: Reconciling with cloud.")
+                lifecycleScope.launch {
+                    repository.reconcileWithCloud()
+                    repository.registerRealtimeSync() // Re-register listener on network recovery
+                }
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                android.util.Log.d("NetworkCallback", "Network Lost: Realtime sync will be disabled.")
+                repository.detachRealtimeSync() // Detach listener when network is lost
+            }
+        }
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -54,7 +86,6 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
                 android.util.Log.d("GoogleLogin", "Google Sign-In Success: ${account?.email}")
 
-                // Firebase Authentication with Google credential
                 val idToken = account?.idToken
                 if (idToken != null) {
                     val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
@@ -66,6 +97,10 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 android.util.Log.d("FirebaseAuth", "Firebase Auth Success. UID: $firebaseUid")
                                 viewModel.onGoogleSignInSuccess(account?.email ?: "", firebaseUid ?: "")
                                 Toast.makeText(this, "구글 로그인 성공 (Firebase 연동): ${account?.email}", Toast.LENGTH_SHORT).show()
+                                // After successful sign-in, trigger reconciliation
+                                lifecycleScope.launch {
+                                    repository.reconcileWithCloud()
+                                }
                             } else {
                                 android.util.Log.e("FirebaseAuth", "Firebase Auth Failed: ${firebaseAuthTask.exception?.message}")
                                 Toast.makeText(this, "Firebase 연동 실패: ${firebaseAuthTask.exception?.message}", Toast.LENGTH_LONG).show()
@@ -94,24 +129,18 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     fun loginWithGoogle() {
         android.util.Log.d("GoogleLogin", "Starting Google Sign-In Intent")
-        
-        // 1. Web Client ID 가져오기 (Firebase 연동 필수)
         val webClientIdResId = resources.getIdentifier("default_web_client_id", "string", packageName)
         val webClientId = if (webClientIdResId != 0) getString(webClientIdResId) else null
-        
         android.util.Log.d("GoogleLogin", "Web Client ID: $webClientId")
 
         val gsoBuilder = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
         
-        // ID 토큰 요청이 있어야 Firebase 로그인으로 간주됩니다.
         if (webClientId != null) {
             gsoBuilder.requestIdToken(webClientId)
         }
 
         val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this, gsoBuilder.build())
-        
-        // 기존 세션 로그아웃 후 로그인 창 실행
         client.signOut().addOnCompleteListener {
             googleSignInLauncher.launch(client.signInIntent)
         }
@@ -122,16 +151,20 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         android.util.Log.d("APP_START", "MainActivity onCreate called.")
         tts = TextToSpeech(this, this)
         
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    // hiltViewModel() 대신 Activity 인스턴스인 viewModel을 직접 전달
-                    
                     androidx.compose.runtime.LaunchedEffect(Unit) {
-                        kotlinx.coroutines.flow.combine(viewModel.rideAlerts, viewModel.arrivalAlerts) { ride, arrival ->
+                        combine(viewModel.rideAlerts, viewModel.arrivalAlerts) { ride, arrival ->
                             Pair(ride, arrival)
                         }.collect { (ride, arrival) ->
-                            com.czt.bbt.util.ShortcutUtil.updateShortcuts(this@MainActivity, ride, arrival)
+                            ShortcutUtil.updateShortcuts(this@MainActivity, ride, arrival)
                         }
                     }
 
@@ -146,7 +179,6 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             }
         }
         
-        // 권한 확인 및 최초 실행 시 구글 로그인 유도
         checkAndRequestPermissions()
         val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
         val googleUserId = prefs.getString("google_user_id", "")
@@ -154,30 +186,40 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             android.util.Log.d("MainActivity", "onCreate: Google User ID is empty. Initiating Google Sign-In.")
             loginWithGoogle()
         } else {
-            android.util.Log.d("MainActivity", "onCreate: Google User ID exists ($googleUserId). Forcing sync and refresh.")
-            viewModel.forceSyncAndRefresh()
+            android.util.Log.d("MainActivity", "onCreate: Google User ID exists. Triggering reconciliation.")
+            lifecycleScope.launch {
+                repository.reconcileWithCloud()
+            }
         }
     }
-override fun onInit(status: Int) {
-    if (status == TextToSpeech.SUCCESS) {
-        tts?.setLanguage(Locale.KOREAN)
+    
+    override fun onStart() {
+        super.onStart()
+        repository.registerRealtimeSync()
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        repository.detachRealtimeSync()
+    }
 
-        // 사용 가능한 한국어 목소리 필터링
-        val allVoices = tts?.voices ?: emptySet()
-        val filteredVoices = allVoices.filter { it.locale.language == "ko" }
-        _availableVoices.clear()
-        _availableVoices.addAll(filteredVoices)
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.setLanguage(Locale.KOREAN)
+            val allVoices = tts?.voices ?: emptySet()
+            val filteredVoices = allVoices.filter { it.locale.language == "ko" }
+            _availableVoices.clear()
+            _availableVoices.addAll(filteredVoices)
 
-        // 특정 목소리(ko-kr-x-koc-local)를 기본값으로 설정 시도
-        val targetVoice = filteredVoices.find { it.name == "ko-kr-x-koc-local" }
-        if (targetVoice != null) {
-            _selectedVoice.value = targetVoice
-            tts?.voice = targetVoice
-        } else {
-            _selectedVoice.value = tts?.voice
-        }
+            val targetVoice = filteredVoices.find { it.name == "ko-kr-x-koc-local" }
+            if (targetVoice != null) {
+                _selectedVoice.value = targetVoice
+                tts?.voice = targetVoice
+            } else {
+                _selectedVoice.value = tts?.voice
+            }
 
-        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
                 override fun onDone(utteranceId: String?) { _currentWordRange.value = null }
                 override fun onError(utteranceId: String?) {}
@@ -204,6 +246,8 @@ override fun onInit(status: Int) {
     override fun onDestroy() {
         tts?.stop()
         tts?.shutdown()
+        repository.detachRealtimeSync() // Final cleanup
+        connectivityManager.unregisterNetworkCallback(networkCallback)
         super.onDestroy()
     }
 }
