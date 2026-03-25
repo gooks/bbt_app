@@ -2,6 +2,7 @@ package com.czt.bbt.ui.screens
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +34,20 @@ fun ArrivalStatusScreen(viewModel: BusViewModel) {
     // 드래그 앤 드롭 상태 관리
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    // 특정 알림으로 스크롤 이동 처리
+    val coroutineScope = rememberCoroutineScope()
+    val scrollToAlertId by viewModel.scrollToAlertId
+    
+    LaunchedEffect(scrollToAlertId) {
+        scrollToAlertId?.let { targetId ->
+            val index = activeIds.indexOf(targetId)
+            if (index != -1) {
+                listState.animateScrollToItem(index)
+            }
+            viewModel.setScrollToAlertId(null) // 처리 완료 후 초기화
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("실시간 도착 현황", fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -82,7 +97,9 @@ fun ArrivalStatusScreen(viewModel: BusViewModel) {
                         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier
+                                .clickable { viewModel.refreshArrivalAlert(id) }
+                                .padding(16.dp),
                             verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {

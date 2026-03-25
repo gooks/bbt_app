@@ -157,6 +157,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             .build()
         connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
 
+        handleIntent(intent)
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -201,6 +203,25 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     override fun onStop() {
         super.onStop()
         repository.detachRealtimeSync()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
+        val action = intent?.getStringExtra("ACTION")
+        val targetAlertId = intent?.getLongExtra("EXTRA_TARGET_ALERT_ID", -1L) ?: -1L
+        
+        if (action == "FOCUS_ARRIVAL" && targetAlertId != -1L) {
+            viewModel.selectedTabIndex.intValue = 0 // 도착현황 탭
+            viewModel.setScrollToAlertId(targetAlertId)
+            viewModel.refreshArrivalAlert(targetAlertId)
+        } else if (action == "FOCUS_RIDE_HISTORY") {
+            viewModel.selectedTabIndex.intValue = 2 // 이동이력 탭
+        }
     }
 
     override fun onInit(status: Int) {

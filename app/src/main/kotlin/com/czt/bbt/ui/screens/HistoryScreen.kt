@@ -40,19 +40,19 @@ fun HistoryScreen(viewModel: BusViewModel) {
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    val fullStartStr = SimpleDateFormat("yyyy-MM-dd (E) HH:mm", Locale.KOREAN).format(Date(log.boardingTime))
+                    val dateDisplay = "${log.date} (${log.dayOfWeek})"
+                    val startTimeDisplay = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.boardingTime))
 
-                    // 예상 또는 실제 하차 정보 계산
-                    val alightDisplay: String
+                    // 하차 정보 표시 조합
+                    val endTimeDisplay: String
                     val durationDisplay: String
                     if (log.alightTime != null) {
-                        alightDisplay = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.alightTime))
-                        durationDisplay = " (${(log.alightTime - log.boardingTime) / 60000}분)"
+                        endTimeDisplay = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.alightTime))
+                        durationDisplay = " (${log.durationMinutes ?: ((log.alightTime - log.boardingTime) / 60000)}분)"
                     } else {
-                        // 이행 중일 땐 DB에 저장된 API 기반 예상시간 사용, 없으면 경과시간 표시
                         val estMin = log.estimatedMinutes ?: ((System.currentTimeMillis() - log.boardingTime) / 60000).toInt().coerceAtLeast(1)
                         val estArrivalTime = log.boardingTime + (estMin * 60000L)
-                        alightDisplay = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(estArrivalTime))
+                        endTimeDisplay = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(estArrivalTime))
                         durationDisplay = " (${estMin}분 소요예정)"
                     }
 
@@ -69,13 +69,16 @@ fun HistoryScreen(viewModel: BusViewModel) {
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("$fullStartStr ~ $alightDisplay$durationDisplay", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+                    Text("$dateDisplay $startTimeDisplay ~ $endTimeDisplay$durationDisplay", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+
+                    val bName = if (!log.boardingStationNo.isNullOrEmpty()) "[${log.boardingStationNo}]${log.boardingStationName}" else log.boardingStationName
+                    val aName = if (!log.alightStationNo.isNullOrEmpty()) "[${log.alightStationNo}]${log.alightStationName ?: ""}" else (log.alightStationName ?: "")
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("승차: ${log.boardingStationName.replace("(", " [").replace(")", "]")}", fontSize = 13.sp)
+                    Text("승차정류장: $bName", fontSize = 13.sp)
                     Text(
-                        text = if (isOngoing) "목적지: ${log.alightStationName ?: "확인 중"} (이동 중)"
-                        else "하차: ${log.alightStationName?.replace("(", " [")?.replace(")", "]") ?: "미정"}",
+                        text = if (isOngoing) "목적정류장: ${if (aName.isEmpty()) "확인 중" else aName} (이동 중)"
+                        else "하차정류장: ${if (aName.isEmpty()) "미정" else aName}",
                         fontSize = 13.sp,
                         color = if (isOngoing) MaterialTheme.colorScheme.secondary else Color.Unspecified
                     )

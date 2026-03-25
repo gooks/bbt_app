@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.czt.bbt.data.BusRepository
@@ -167,6 +168,15 @@ class BusViewModel @Inject constructor(
 
     private val _arrivalLiveStatusIds = MutableStateFlow<List<Long>>(emptyList())
     val arrivalLiveStatusIds = _arrivalLiveStatusIds.asStateFlow()
+
+    var scrollToAlertId = mutableStateOf<Long?>(null)
+        private set
+        
+    var selectedTabIndex = mutableIntStateOf(0)
+
+    fun setScrollToAlertId(id: Long?) {
+        scrollToAlertId.value = id
+    }
 
     init {
         loadStateFromPrefs()
@@ -463,6 +473,10 @@ class BusViewModel @Inject constructor(
     fun stopArrivalAlert(alertId: Long) { activeArrivalIds.remove(alertId); saveState(); sendServiceAction("ACTION_STOP_ALERT", alertId) }
     fun stopArrivalAll() { activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP_ARRIVAL_ALL) }
     fun stopAllServices() { activeRideAlertId.value = null; activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP) }
+
+    fun refreshArrivalAlert(alertId: Long) {
+        sendServiceAction(BusAlertService.ACTION_REFRESH, alertId)
+    }
 
     private fun sendServiceAction(action: String, alertId: Long = -1) {
         val intent = Intent(context, BusAlertService::class.java).apply { this.action = action; if (alertId != -1L) putExtra(BusAlertService.EXTRA_ALERT_ID, alertId) }
