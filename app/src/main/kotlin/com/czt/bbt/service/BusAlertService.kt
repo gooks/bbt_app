@@ -276,9 +276,12 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     private suspend fun checkArrivalStatus(alertId: Long): Long {
         val alert = activeArrivalAlerts[alertId] ?: return 300000L
+        val title = "버스도착알림 : ${alert.stationName}"
         try {
             val results = mutableListOf<Triple<String, String, Int>>(); val displayMessages = mutableMapOf<String, String>(); val detailMessages = mutableMapOf<String, String>()
-            val res = repository.getBusArrivalListV2(alert.stationId); val arrivalList = res.response.msgBody?.busArrivalList ?: emptyList()
+            val res = repository.getBusArrivalListV2(alert.stationId)
+            val arrivalList = parseArrivalList(res.response.msgBody?.busArrivalList)
+            
             alert.targetBusNumbers.forEachIndexed { index, rId ->
                 try {
                     val busName = alert.targetBusNames.getOrNull(index) ?: "버스"; val item = arrivalList.find { it.routeId.toIntSafe().toString() == rId }; val p1 = item?.predictTimeSec1.toIntSafe()
@@ -334,7 +337,6 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     }
                 } catch (e: Exception) { }
             }
-            val title = "버스도착알림 : ${alert.stationName}"
             if (results.isEmpty()) { updateArrivalNotification(alertId, title, "운행 정보 없음", "운행 정보 없음"); return 60000L }
             val sorted = results.sortedBy { it.third };
             val firstSortedItem = sorted.first()
@@ -365,8 +367,23 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             val contentDetail = "<[${alert.stationNo}] ${alert.stationName} 버스도착정보>\n\n" + sorted.joinToString("\n\n") { detailMessages[it.second] ?: "" }
             updateArrivalNotification(alertId, title, contentPopup, contentDetail)
             return when { minTimeSec > 300 -> 60000L; minTimeSec > 180 -> 30000L; else -> 15000L }
-        } catch (e: Exception) { return 60000L }
+        } catch (e: Exception) { 
+            updateArrivalNotification(alertId, title, "정보 조회 중 오류 발생", "서버 응답을 처리하는 중 오류가 발생했습니다.")
+            return 60000L 
+        }
     }
+
+    private fun parseArrivalList(data: Any?): List<com.czt.bbt.api.GBusArrivalInfoItem> {
+        val json = gson.toJson(data ?: return emptyList())
+        return try {
+            if (json.startsWith("[")) {
+                gson.fromJson(json, object : TypeToken<List<com.czt.bbt.api.GBusArrivalInfoItem>>() {}.type)
+            } else {
+                listOf(gson.fromJson(json, com.czt.bbt.api.GBusArrivalInfoItem::class.java))
+            }
+        } catch (e: Exception) { emptyList() }
+    }
+
 
 
     private fun updateArrivalNotification(alertId: Long, title: String, contentPopup: String, contentDetail: String) {
@@ -562,7 +579,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     // 2. 실시간 목적지 도착 정보 확인 (내가 탄 차량번호 기준)
                     try {
                         val res = repository.getBusArrivalListV2(alert.destinationStationId)
-                        val arrivalList = res.response.msgBody?.busArrivalList ?: emptyList()
+                        val arrivalList = parseArrivalList(res.response.msgBody?.busArrivalList)
                         val routeArrival = arrivalList.find { it.routeId.toIntSafe().toString() == alert.busRouteId }
                         if (routeArrival != null) {
                             if (routeArrival.plateNo1 == currentBusPlate && routeArrival.predictTimeSec1.toIntSafe() > 0) {

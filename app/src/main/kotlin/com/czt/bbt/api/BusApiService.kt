@@ -78,7 +78,7 @@ interface BusApiService {
 // --- 도착 정보 응답 모델 V2 ---
 data class GBusArrivalListResponseV2(val response: GBusArrivalDataV2)
 data class GBusArrivalDataV2(val msgHeader: GBusHeader, val msgBody: GBusArrivalBodyV2?)
-data class GBusArrivalBodyV2(val busArrivalList: List<GBusArrivalInfoItem>?)
+data class GBusArrivalBodyV2(val busArrivalList: Any?)
 
 data class GBusArrivalItemResponseV2(val response: GBusArrivalItemDataV2)
 data class GBusArrivalItemDataV2(val msgHeader: GBusHeader, val msgBody: GBusArrivalItemBodyV2?)

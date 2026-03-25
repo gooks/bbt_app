@@ -130,28 +130,15 @@ fun SettingsScreen(viewModel: BusViewModel, onBack: () -> Unit) {
                         leadingContent = { Icon(Icons.Default.AccountCircle, null, tint = MaterialTheme.colorScheme.primary) }
                     )
                     
-                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { 
-                                viewModel.forceSyncAndRefresh()
-                                android.widget.Toast.makeText(context, "클라우드 데이터 동기화 완료!", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Refresh, null)
-                            Text(" 동기화")
-                        }
-                        
-                        Button(
-                            onClick = { 
-                                viewModel.logoutGoogle()
-                                android.widget.Toast.makeText(context, "구글 연동이 해제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("연동 해제")
-                        }
+                    Button(
+                        onClick = { 
+                            viewModel.logoutGoogle()
+                            android.widget.Toast.makeText(context, "구글 연동이 해제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("연동 해제")
                     }
                 } else {
                     Button(
