@@ -38,6 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 import com.czt.bbt.ui.BusAlertState
@@ -67,6 +68,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private val lastArrivalAlertStops = mutableMapOf<Long, Int>()
     private val lastArrivalAlertPlate = mutableMapOf<Long, String>()
     private val lastAnnouncedRouteId = mutableMapOf<Long, String>()
+    private val garageDepartureAnnounced = mutableMapOf<Long, MutableSet<String>>() // alertId -> set of routeIds
     private var lastApproachingPlate: String? = null // 최근 도착 안내된 차량 번호
     private var lastApproachingRouteId: String? = null // 최근 도착 안내된 노선 ID
 
@@ -234,8 +236,11 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                                 val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
                                 val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
                                 
-                                // 내 정류장(boardingSeq)까지 도달한 가장 가까운 버스 찾기 (정류장 도착 포함)
-                                val nearestBus = busLocs.filter { it.stationSeq <= boardingSeq }.maxByOrNull { it.stationSeq }
+                                // 내 정류장(boardingSeq)을 기준으로 가장 가까운 버스 찾기 (지나간 버스도 한 정거장 정도는 후보 유지)
+                                val candidates = busLocs.filter { it.stationSeq >= boardingSeq - 1 && it.stationSeq <= boardingSeq + 1 }
+                                val nearestBus = candidates.minByOrNull { abs(it.stationSeq - boardingSeq) }
+                                    ?: busLocs.filter { it.stationSeq < boardingSeq }.maxByOrNull { it.stationSeq }
+
                                 if (nearestBus != null) {
                                     lastApproachingPlate = nearestBus.plateNo
                                     Log.d(TAG, "Approaching bus updated: $lastApproachingPlate (seq: ${nearestBus.stationSeq} / mine: $boardingSeq)")
@@ -292,6 +297,15 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                         displayMessages[rId] = "[$busName] $timeStr 후 도착$stopsLeftStr"
                         detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.locationNo1.toIntSafe()}정거장 전 ${item.stationNm1} $stateStr"
                         results.add(Triple(busName, rId, p1))
+
+                        // 차고지 출발 알림 (최초 1회)
+                        val announcedSet = garageDepartureAnnounced.getOrPut(alertId) { mutableSetOf() }
+                        if (!announcedSet.contains(rId)) {
+                            announcedSet.add(rId)
+                            val ttsMsg = "차고지에서 ${busName}번 버스가 출발했습니다. ${mins}분 ${secs}초 후 도착 예정입니다."
+                            speak(ttsMsg)
+                            Log.d(TAG, "Garage departure announced: $ttsMsg")
+                        }
                     } else {
                         val stations = routeStationsCache[rId] ?: repository.getBusRouteStations(rId).also { routeStationsCache[rId] = it }
                         val myStation = stations.find { it.stationId == alert.stationId } 
