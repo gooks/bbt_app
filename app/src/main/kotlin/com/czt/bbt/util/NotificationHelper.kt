@@ -38,7 +38,7 @@ object NotificationHelper {
         }
     }
 
-    fun sendEmail(context: Context, busNo: String, plateNo: String, time: String, station: String, type: String, summary: String = "") {
+    fun sendEmail(context: Context, toEmail: String, busNo: String, plateNo: String, time: String, station: String, type: String, summary: String = "") {
         val prefs = context.getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
         val userEmail = prefs.getString("google_email", "") ?: ""
         val appPass = prefs.getString("google_app_password", "") ?: ""
@@ -66,13 +66,13 @@ object NotificationHelper {
 
                     val message = javax.mail.internet.MimeMessage(session).apply {
                         setFrom(javax.mail.internet.InternetAddress(userEmail))
-                        addRecipient(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress(userEmail))
+                        addRecipient(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress(toEmail))
                         setSubject(subject)
                         setText(body)
                     }
 
                     javax.mail.Transport.send(message)
-                    Log.i("Email", "메일 자동 전송 성공")
+                    Log.i("Email", "메일 자동 전송 성공 ($toEmail)")
                 } catch (e: Exception) {
                     Log.e("Email", "메일 자동 전송 실패: ${e.message}")
                     // 실패 시 기존 방식으로 폴백하거나 알림
@@ -81,7 +81,7 @@ object NotificationHelper {
         } else {
             // 기존 방식: 이메일 앱 호출
             val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("mailto:")
+                data = Uri.parse("mailto:$toEmail")
                 putExtra(Intent.EXTRA_SUBJECT, subject)
                 putExtra(Intent.EXTRA_TEXT, body)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

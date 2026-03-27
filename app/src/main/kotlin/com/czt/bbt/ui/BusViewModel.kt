@@ -36,19 +36,7 @@ class BusViewModel @Inject constructor(
 
     private val prefs = context.getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE)
     
-    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "active_ride_id" || key == "active_arrival_ids") {
-            loadStateFromPrefs()
-        }
-    }
-
-    // 데이터 흐름 (Flows)
-    val rideAlerts = repository.getAllRideAlerts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
-    val arrivalAlerts = repository.getAllArrivalAlerts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
-    val history = repository.getAllRideHistories().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
-    val systemLogs = repository.getSystemLogs().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
-
-    // 이동 알림 UI 상태
+    // UI 상태들
     var rideBusSearchQuery = mutableStateOf("")
     var rideBusSearchResult = mutableStateListOf<BusInfo>() 
     var rideSelectedBus = mutableStateOf<BusInfo?>(null)
@@ -62,7 +50,6 @@ class BusViewModel @Inject constructor(
     var rideShareMemo = mutableStateOf("")
     var rideTempEmail = mutableStateOf("")
 
-    // 도착 알림 UI 상태
     var arrivalStationSearchQuery = mutableStateOf("")
     var arrivalStationSearchResult = mutableStateListOf<StationInfo>() 
     var arrivalSelectedStation = mutableStateOf<StationInfo?>(null)
@@ -74,92 +61,18 @@ class BusViewModel @Inject constructor(
     var errorMessage = mutableStateOf<String?>(null)
     var isLoading = mutableStateOf(false)
 
-    // 구글 계정 및 메일 설정
     var googleEmail = mutableStateOf(prefs.getString("google_email", "") ?: "")
     var googleAppPassword = mutableStateOf(prefs.getString("google_app_password", "") ?: "")
     var googleUserId = mutableStateOf(prefs.getString("google_user_id", "") ?: "")
     var isGoogleLoggedIn = mutableStateOf(googleUserId.value.isNotEmpty())
     
-    // 카카오 계정 설정
     var isKakaoLoggedIn = mutableStateOf(false)
     var kakaoNickname = mutableStateOf("")
 
-    fun checkKakaoLoginStatus() {
-        com.kakao.sdk.user.UserApiClient.instance.me { user, error ->
-            if (user != null) {
-                isKakaoLoggedIn.value = true
-                kakaoNickname.value = user.kakaoAccount?.profile?.nickname ?: "사용자"
-            } else {
-                isKakaoLoggedIn.value = false
-                kakaoNickname.value = ""
-            }
-        }
-    }
-
-    fun logoutKakao() {
-        com.kakao.sdk.user.UserApiClient.instance.logout {
-            isKakaoLoggedIn.value = false
-            kakaoNickname.value = ""
-        }
-    }
-
-    fun onGoogleSignInSuccess(email: String, userId: String) {
-        android.util.Log.d("BusViewModel", "onGoogleSignInSuccess: Saving email=$email, userId=$userId")
-        prefs.edit().putString("google_email", email).putString("google_user_id", userId).apply()
-        forceSyncAndRefresh()
-    }
-
-    fun forceSyncAndRefresh() {
-        val uid = prefs.getString("google_user_id", "") ?: ""
-        android.util.Log.d("BusViewModel", "forceSyncAndRefresh: Attempting sync for UID=$uid")
-        if (uid.isEmpty()) {
-            android.util.Log.w("BusViewModel", "forceSyncAndRefresh: UID is empty, skipping sync.")
-            return
-        }
-
-        viewModelScope.launch {
-            // 1. 새 동기화 로직 호출
-            repository.reconcileWithCloud()
-
-            // 2. 동기화 후 SharedPreferences에서 최신 정보로 UI 상태 강제 갱신
-            googleEmail.value = prefs.getString("google_email", "") ?: ""
-            googleAppPassword.value = prefs.getString("google_app_password", "") ?: ""
-            googleUserId.value = prefs.getString("google_user_id", "") ?: ""
-            isGoogleLoggedIn.value = googleUserId.value.isNotEmpty()
-            android.util.Log.d("BusViewModel", "forceSyncAndRefresh: UI state refreshed. googleUserId=${googleUserId.value}")
-
-            // 3. 카카오 로그인 상태도 갱신
-            checkKakaoLoginStatus()
-        }
-    }
-
-    fun saveGoogleAccount(email: String, appPassword: String) {
-        googleEmail.value = email
-        googleAppPassword.value = appPassword
-        isGoogleLoggedIn.value = email.isNotEmpty()
-        prefs.edit().putString("google_email", email).putString("google_app_password", appPassword).apply()
-        
-        // 클라우드에 앱 비밀번호 저장
-        viewModelScope.launch {
-            repository.saveGoogleAppPasswordToCloud(appPassword)
-        }
-    }
-
-    fun logoutGoogle() {
-        googleEmail.value = ""
-        googleAppPassword.value = ""
-        isGoogleLoggedIn.value = false
-        prefs.edit().remove("google_email").remove("google_app_password").apply()
-    }
-
-    // API 현황 상태
     var apiUsage = mutableStateMapOf<String, Int>()
-
-    // 실행 상태 추적
     var activeRideAlertId = mutableStateOf<Long?>(null)
     var activeArrivalIds = mutableStateListOf<Long>()
 
-    // 실시간 도착 현황 상태 (BusAlertState 구독)
     private val _arrivalLiveStatus = MutableStateFlow<Map<Long, String>>(emptyMap())
     val arrivalLiveStatus = _arrivalLiveStatus.asStateFlow()
 
@@ -171,18 +84,32 @@ class BusViewModel @Inject constructor(
 
     var scrollToAlertId = mutableStateOf<Long?>(null)
         private set
-        
     var selectedTabIndex = mutableIntStateOf(0)
 
-    fun setScrollToAlertId(id: Long?) {
-        scrollToAlertId.value = id
+    // 리스너 정의
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "active_ride_id" || key == "active_arrival_ids") {
+            loadStateFromPrefs()
+        }
     }
+
+    // Flows
+    val rideAlerts = repository.getAllRideAlerts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+    val arrivalAlerts = repository.getAllArrivalAlerts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+    val history = repository.getAllRideHistories().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+    val systemLogs = repository.getSystemLogs().stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 
     init {
         loadStateFromPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
         loadApiUsage()
         
+        // 앱 시작 시 로그인 상태 확인 및 동기화 시도
+        if (googleUserId.value.isNotEmpty()) {
+            forceSyncAndRefresh()
+        }
+        checkKakaoLoginStatus()
+
         viewModelScope.launch {
             BusAlertState.liveStatusFlow.collect { _arrivalLiveStatus.value = it }
         }
@@ -197,6 +124,10 @@ class BusViewModel @Inject constructor(
                 map.forEach { (tag, count) -> apiUsage[tag] = count }
             }
         }
+    }
+
+    fun setScrollToAlertId(id: Long?) {
+        scrollToAlertId.value = id
     }
 
     fun updateArrivalLiveStatusIds(ids: List<Long>) {
@@ -244,12 +175,69 @@ class BusViewModel @Inject constructor(
         context.sendBroadcast(widgetIntent)
     }
 
+    fun checkKakaoLoginStatus() {
+        com.kakao.sdk.user.UserApiClient.instance.me { user, error ->
+            if (user != null) {
+                isKakaoLoggedIn.value = true
+                kakaoNickname.value = user.kakaoAccount?.profile?.nickname ?: "사용자"
+            } else {
+                isKakaoLoggedIn.value = false
+                kakaoNickname.value = ""
+            }
+        }
+    }
+
+    fun logoutKakao() {
+        com.kakao.sdk.user.UserApiClient.instance.logout {
+            isKakaoLoggedIn.value = false
+            kakaoNickname.value = ""
+        }
+    }
+
+    fun onGoogleSignInSuccess(email: String, userId: String) {
+        android.util.Log.d("BusViewModel", "onGoogleSignInSuccess: Saving email=$email, userId=$userId")
+        prefs.edit().putString("google_email", email).putString("google_user_id", userId).apply()
+        forceSyncAndRefresh()
+    }
+
+    fun forceSyncAndRefresh() {
+        val uid = prefs.getString("google_user_id", "") ?: ""
+        android.util.Log.d("BusViewModel", "forceSyncAndRefresh: Attempting sync for UID=$uid")
+        if (uid.isEmpty()) {
+            android.util.Log.w("BusViewModel", "forceSyncAndRefresh: UID is empty, skipping sync.")
+            return
+        }
+
+        viewModelScope.launch {
+            repository.reconcileWithCloud()
+            googleEmail.value = prefs.getString("google_email", "") ?: ""
+            googleAppPassword.value = prefs.getString("google_app_password", "") ?: ""
+            googleUserId.value = prefs.getString("google_user_id", "") ?: ""
+            isGoogleLoggedIn.value = googleUserId.value.isNotEmpty()
+            checkKakaoLoginStatus()
+        }
+    }
+
+    fun saveGoogleAccount(email: String, appPassword: String) {
+        googleEmail.value = email
+        googleAppPassword.value = appPassword
+        isGoogleLoggedIn.value = email.isNotEmpty()
+        prefs.edit().putString("google_email", email).putString("google_app_password", appPassword).apply()
+        viewModelScope.launch { repository.saveGoogleAppPasswordToCloud(appPassword) }
+    }
+
+    fun logoutGoogle() {
+        googleEmail.value = ""
+        googleAppPassword.value = ""
+        isGoogleLoggedIn.value = false
+        prefs.edit().remove("google_email").remove("google_app_password").apply()
+    }
+
     override fun onCleared() {
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         super.onCleared()
     }
 
-    // 데이터 클래스
     data class BusInfo(val name: String, val routeId: String, val type: String, val region: String)
     data class StationInfo(val name: String, val id: String, val no: String, val seq: Int = 0)
     
@@ -304,8 +292,7 @@ class BusViewModel @Inject constructor(
     }
 
     fun setEditRideAlert(alert: RideAlert) {
-        editingRideAlert.value = alert
-        rideBusSearchQuery.value = alert.busNumber
+        editingRideAlert.value = alert; rideBusSearchQuery.value = alert.busNumber
         rideSelectedBus.value = BusInfo(alert.busNumber, alert.busRouteId, "", "")
         rideSelectedDestination.value = StationInfo(alert.destinationStationName, alert.destinationStationId, "", alert.destinationStationSeq)
         rideShareEmails.clear(); rideShareEmails.addAll(alert.shareEmails)
@@ -323,9 +310,8 @@ class BusViewModel @Inject constructor(
 
     fun loginWithKakao(context: Context) {
         val callback: (com.kakao.sdk.auth.model.OAuthToken?, Throwable?) -> Unit = { token, error ->
-            if (error != null) {
-                errorMessage.value = "카카오 로그인 실패: ${error.message}"
-            } else if (token != null) {
+            if (error != null) { errorMessage.value = "카카오 로그인 실패: ${error.message}" } 
+            else if (token != null) {
                 viewModelScope.launch { 
                     repository.logSystem("KAKAO_LOGIN", "카카오 로그인 성공")
                     checkKakaoLoginStatus()
@@ -333,38 +319,19 @@ class BusViewModel @Inject constructor(
                 }
             }
         }
-
-        if (com.kakao.sdk.user.UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
-            com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoTalk(context, callback = callback)
-        } else {
-            com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
-        }
+        if (com.kakao.sdk.user.UserApiClient.instance.isKakaoTalkLoginAvailable(context)) com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoTalk(context, callback = callback)
+        else com.kakao.sdk.user.UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
     }
 
     fun toggleKakaoShare(context: Context, isChecked: Boolean) {
-        if (!isChecked) {
-            rideShareKakao.value = false
-            return
-        }
-
+        if (!isChecked) { rideShareKakao.value = false; return }
         com.kakao.sdk.user.UserApiClient.instance.scopes { scopeInfo, error ->
-            if (error != null) {
-                errorMessage.value = "카카오톡 권한 확인 실패: ${error.message}"
-                return@scopes
-            }
-
-            if (scopeInfo?.scopes?.any { it.id == "talk_message" } == true) {
-                // 이미 '나에게 보내기' 권한이 있으면 상태만 변경
-                rideShareKakao.value = true
-            } else {
-                // 권한이 없으면 동적 동의 요청
+            if (error != null) { errorMessage.value = "카카오톡 권한 확인 실패: ${error.message}"; return@scopes }
+            if (scopeInfo?.scopes?.any { it.id == "talk_message" } == true) { rideShareKakao.value = true } 
+            else {
                 com.kakao.sdk.user.UserApiClient.instance.loginWithNewScopes(context, listOf("talk_message")) { token, scopeError ->
-                    if (scopeError != null) {
-                        errorMessage.value = "카카오톡 메시지 권한 동의 실패: ${scopeError.message}"
-                    } else if (token != null) {
-                        rideShareKakao.value = true
-                        viewModelScope.launch { repository.logSystem("KAKAO_SCOPE", "카카오 메시지 권한 획득") }
-                    }
+                    if (scopeError != null) errorMessage.value = "카카오톡 메시지 권한 동의 실패: ${scopeError.message}"
+                    else if (token != null) { rideShareKakao.value = true; viewModelScope.launch { repository.logSystem("KAKAO_SCOPE", "카카오 메시지 권한 획득") } }
                 }
             }
         }
@@ -374,12 +341,10 @@ class BusViewModel @Inject constructor(
         val bus = rideSelectedBus.value ?: return; val dest = rideSelectedDestination.value ?: return
         viewModelScope.launch {
             val alert = RideAlert(
-                id = editingRideAlert.value?.id ?: 0,
-                busNumber = bus.name, busRouteId = bus.routeId,
+                id = editingRideAlert.value?.id ?: 0, busNumber = bus.name, busRouteId = bus.routeId,
                 destinationStationName = dest.name, destinationStationId = dest.id, destinationStationSeq = dest.seq,
                 shareEmails = rideShareEmails.toList(), shareKakao = rideShareKakao.value, shareType = rideShareType.value,
-                shareKakaoTarget = rideShareKakaoTarget.value, shareMemo = rideShareMemo.value,
-                lastModified = System.currentTimeMillis()
+                shareKakaoTarget = rideShareKakaoTarget.value, shareMemo = rideShareMemo.value, lastModified = System.currentTimeMillis()
             )
             if (editingRideAlert.value == null) repository.insertRideAlert(alert) else repository.updateRideAlert(alert)
             resetRideForm()
@@ -398,9 +363,8 @@ class BusViewModel @Inject constructor(
             try {
                 val res = repository.searchStation(arrivalStationSearchQuery.value)
                 val list = parseList<GBusStationItem>(res.response.msgBody?.busStationList)
-                if (list.isNotEmpty()) {
-                    arrivalStationSearchResult.addAll(list.map { StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") })
-                } else { errorMessage.value = "검색 결과가 없습니다." }
+                if (list.isNotEmpty()) arrivalStationSearchResult.addAll(list.map { StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") })
+                else errorMessage.value = "검색 결과가 없습니다."
             } catch (e: Exception) { errorMessage.value = "정류소 검색 오류" }
             finally { isLoading.value = false; loadApiUsage() }
         }
@@ -415,7 +379,7 @@ class BusViewModel @Inject constructor(
                 val res = repository.getBusStationAroundList(location.longitude, location.latitude)
                 val list = parseList<GBusStationAroundItem>(res.response.msgBody?.busStationAroundList)
                 arrivalStationSearchResult.addAll(list.map { StationInfo(it.stationName?.toString() ?: "이름없음", it.stationId.toString(), it.mobileNo?.toString() ?: "") })
-            } else { errorMessage.value = "위치 정보를 가져올 수 없습니다." }
+            } else errorMessage.value = "위치 정보를 가져올 수 없습니다."
         } catch (e: Exception) { errorMessage.value = "주변 검색 오류" }
         finally { isLoading.value = false; loadApiUsage() }
     }
@@ -447,43 +411,29 @@ class BusViewModel @Inject constructor(
         if (arrivalSelectedBuses.isEmpty()) return
         viewModelScope.launch {
             val alert = ArrivalAlert(
-                id = editingArrivalAlert.value?.id ?: 0,
-                stationName = station.name, stationId = station.id, stationNo = station.no,
-                targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList(),
-                lastModified = System.currentTimeMillis() // 수정 시각 갱신
+                id = editingArrivalAlert.value?.id ?: 0, stationName = station.name, stationId = station.id, stationNo = station.no,
+                targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList(), lastModified = System.currentTimeMillis()
             )
             if (editingArrivalAlert.value == null) repository.insertArrivalAlert(alert) else repository.updateArrivalAlert(alert)
             resetArrivalForm()
         }
     }
 
-    fun resetArrivalForm() {
-        arrivalSelectedStation.value = null; arrivalStationSearchResult.clear(); arrivalBusList.clear(); arrivalStationSearchQuery.value = ""
-        arrivalSelectedBuses.clear(); arrivalSelectedBusNames.clear(); editingArrivalAlert.value = null
-    }
-
-    fun toggleArrivalBusSelection(bus: BusInfo) {
-        if (arrivalSelectedBuses.contains(bus.routeId)) { arrivalSelectedBuses.remove(bus.routeId); arrivalSelectedBusNames.remove(bus.name) } 
-        else { arrivalSelectedBuses.add(bus.routeId); arrivalSelectedBusNames.add(bus.name) }
-    }
-
+    fun resetArrivalForm() { arrivalSelectedStation.value = null; arrivalStationSearchResult.clear(); arrivalBusList.clear(); arrivalStationSearchQuery.value = ""; arrivalSelectedBuses.clear(); arrivalSelectedBusNames.clear(); editingArrivalAlert.value = null }
+    fun toggleArrivalBusSelection(bus: BusInfo) { if (arrivalSelectedBuses.contains(bus.routeId)) { arrivalSelectedBuses.remove(bus.routeId); arrivalSelectedBusNames.remove(bus.name) } else { arrivalSelectedBuses.add(bus.routeId); arrivalSelectedBusNames.add(bus.name) } }
     fun startRideAlert(alert: RideAlert) { activeRideAlertId.value = alert.id; saveState(); sendServiceAction(BusAlertService.ACTION_START_RIDE, alert.id) }
-    fun startArrivalAlert(alert: ArrivalAlert) { if (!activeArrivalIds.contains(alert.id)) { activeArrivalIds.add(alert.id) }; saveState(); sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, alert.id) }
+    fun startArrivalAlert(alert: ArrivalAlert) { if (!activeArrivalIds.contains(alert.id)) activeArrivalIds.add(alert.id); saveState(); sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, alert.id) }
     fun stopRideAlert() { activeRideAlertId.value = null; saveState(); sendServiceAction(BusAlertService.ACTION_STOP_RIDE) }
     fun stopArrivalAlert(alertId: Long) { activeArrivalIds.remove(alertId); saveState(); sendServiceAction("ACTION_STOP_ALERT", alertId) }
     fun stopArrivalAll() { activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP_ARRIVAL_ALL) }
     fun stopAllServices() { activeRideAlertId.value = null; activeArrivalIds.clear(); saveState(); sendServiceAction(BusAlertService.ACTION_STOP) }
-
-    fun refreshArrivalAlert(alertId: Long) {
-        sendServiceAction(BusAlertService.ACTION_REFRESH, alertId)
-    }
+    fun refreshArrivalAlert(alertId: Long) = sendServiceAction(BusAlertService.ACTION_REFRESH, alertId)
 
     private fun sendServiceAction(action: String, alertId: Long = -1) {
         val intent = Intent(context, BusAlertService::class.java).apply { this.action = action; if (alertId != -1L) putExtra(BusAlertService.EXTRA_ALERT_ID, alertId) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
     }
 
-    // 이동이력 관리 UI 상태
     var historyBusNoFilter = mutableStateOf("")
     var historyStartDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(System.currentTimeMillis() - 5 * 24 * 60 * 60 * 1000L)))
     var historyEndDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date()))
@@ -493,81 +443,44 @@ class BusViewModel @Inject constructor(
     fun searchRideHistory() {
         viewModelScope.launch {
             isLoading.value = true
+            try { repository.reconcileWithCloud() } catch (e: Exception) { android.util.Log.e("BusViewModel", "조회 전 동기화 실패: ${e.message}") }
             try {
-                // 1. 서버와 양방향 동기화 시도 (오프라인이면 내부에서 스킵됨)
-                repository.reconcileWithCloud()
-            } catch (e: Exception) {
-                android.util.Log.e("BusViewModel", "조회 전 동기화 실패(로컬로 계속): ${e.message}")
-            }
-
-            try {
-                // 2. 동기화 완료 후(혹은 실패 후) 로컬 DB에서 필터링 조회
                 val result = repository.getFilteredRideHistories(historyBusNoFilter.value, historyStartDate.value, historyEndDate.value)
-                filteredHistory.clear()
-                filteredHistory.addAll(result)
-                historySelectedIds.clear()
-            } catch (e: Exception) { 
-                errorMessage.value = "이력 조회 실패" 
-            } finally { 
-                isLoading.value = false 
-            }
+                filteredHistory.clear(); filteredHistory.addAll(result); historySelectedIds.clear()
+            } catch (e: Exception) { errorMessage.value = "이력 조회 실패" } finally { isLoading.value = false }
         }
     }
 
     fun deleteSelectedHistories() {
         val ids = historySelectedIds.toList()
         if (ids.isEmpty()) return
-        viewModelScope.launch {
-            repository.deleteRideHistories(ids)
-            searchRideHistory()
-        }
+        viewModelScope.launch { repository.deleteRideHistories(ids); searchRideHistory() }
     }
 
     fun syncHistories() {
         viewModelScope.launch {
             isLoading.value = true
-            try {
-                repository.reconcileWithCloud()
-                searchRideHistory()
-                android.widget.Toast.makeText(context, "서버와 동기화가 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                errorMessage.value = "서버 전송 실패: ${e.message}"
-            } finally {
-                isLoading.value = false
-            }
+            try { repository.reconcileWithCloud(); searchRideHistory(); android.widget.Toast.makeText(context, "서버와 동기화가 완료되었습니다.", android.widget.Toast.LENGTH_SHORT).show() } 
+            catch (e: Exception) { errorMessage.value = "서버 전송 실패: ${e.message}" } finally { isLoading.value = false }
         }
     }
 
     fun exportToCsv(isAll: Boolean) {
         viewModelScope.launch {
             try {
-                val data = if (isAll) repository.getAllRideHistoriesSorted() else filteredHistory.reversed() // CSV는 과거순
+                val data = if (isAll) repository.getAllRideHistoriesSorted() else filteredHistory.reversed()
                 if (data.isEmpty()) { errorMessage.value = "출력할 데이터가 없습니다."; return@launch }
-
                 val fileName = "RideHistory_${java.text.SimpleDateFormat("yyyyMMdd_HHmm").format(java.util.Date())}.csv"
-                val contentValues = android.content.ContentValues().apply {
-                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
-                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
-                }
-
+                val contentValues = android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName); put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv"); put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS) }
                 val uri = context.contentResolver.insert(android.provider.MediaStore.Files.getContentUri("external"), contentValues)
                 uri?.let {
                     context.contentResolver.openOutputStream(it)?.use { os ->
-                        val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(os, "EUC-KR")) // 엑셀 호환성
-                        writer.write("일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID")
-                        writer.newLine()
+                        val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(os, "EUC-KR"))
+                        writer.write("일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID"); writer.newLine()
                         data.forEach { h ->
                             val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
                             val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
-                            val row = listOf(
-                                h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "",
-                                h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName,
-                                h.alightStationNo ?: "", h.alightStationName ?: "",
-                                h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: ""
-                            ).joinToString(",")
-                            writer.write(row)
-                            writer.newLine()
+                            writer.write(listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",")); writer.newLine()
                         }
                         writer.flush()
                     }
@@ -579,52 +492,22 @@ class BusViewModel @Inject constructor(
 
     fun sendHistoryEmail() {
         viewModelScope.launch {
-            if (!isGoogleLoggedIn.value || googleAppPassword.value.isEmpty()) {
-                errorMessage.value = "설정에서 구글 계정과 앱 비밀번호를 먼저 설정해주세요."
-                return@launch
-            }
+            if (!isGoogleLoggedIn.value || googleAppPassword.value.isEmpty()) { errorMessage.value = "설정에서 구글 계정과 앱 비밀번호를 먼저 설정해주세요."; return@launch }
             isLoading.value = true
             try {
                 val data = repository.getAllRideHistoriesSorted()
                 if (data.isEmpty()) { errorMessage.value = "전송할 데이터가 없습니다."; return@launch }
-
-                // 1. CSV 데이터 생성 (동일한 15개 컬럼)
                 val csvHeader = "일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID\n"
-                val csvBody = data.joinToString("\n") { h ->
-                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
-                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
-                    listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",")
-                }
+                val csvBody = data.joinToString("\n") { h -> val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime)); val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""; listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",") }
                 val csvBytes = (csvHeader + csvBody).toByteArray(java.nio.charset.Charset.forName("EUC-KR"))
-
-                // 2. HTML 표 생성 (동일한 15개 컬럼)
                 val htmlTable = StringBuilder("<table border='1' style='border-collapse:collapse; width:100%; font-size:11px;'>")
                 htmlTable.append("<tr style='background-color:#f2f2f2;'><th>일자</th><th>요일</th><th>승차</th><th>하차</th><th>소요</th><th>버스</th><th>차량번호</th><th>승차번호</th><th>승차정류장</th><th>하차번호</th><th>하차정류장</th><th>버스ID</th><th>차량ID</th><th>승차ID</th><th>하차ID</th></tr>")
-                data.reversed().forEach { h -> 
-                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
-                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: "-"
-                    val durationStr = h.durationMinutes?.let { "${it}분" } ?: "-"
-                    htmlTable.append("<tr>")
-                    listOf(h.date, h.dayOfWeek, boardingStr, alightStr, durationStr, h.busNumber, h.plateNumber ?: "-", h.boardingStationNo ?: "-", h.boardingStationName, h.alightStationNo ?: "-", h.alightStationName ?: "-", h.busRouteId, h.vehicleId ?: "-", h.boardingStationId, h.alightStationId ?: "-").forEach { 
-                        htmlTable.append("<td style='padding:4px;'>$it</td>")
-                    }
-                    htmlTable.append("</tr>")
-                }
+                data.reversed().forEach { h -> val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime)); val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: "-"; val durationStr = h.durationMinutes?.let { "${it}분" } ?: "-"; htmlTable.append("<tr>"); listOf(h.date, h.dayOfWeek, boardingStr, alightStr, durationStr, h.busNumber, h.plateNumber ?: "-", h.boardingStationNo ?: "-", h.boardingStationName, h.alightStationNo ?: "-", h.alightStationName ?: "-", h.busRouteId, h.vehicleId ?: "-", h.boardingStationId, h.alightStationId ?: "-").forEach { htmlTable.append("<td style='padding:4px;'>$it</td>") }; htmlTable.append("</tr>") }
                 htmlTable.append("</table>")
-
-                val subject = "[BBT] 전체 이동 이력 보고서 (${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())})"
-                val content = "<h3>안녕하세요, BBT 이동 이력 보고서입니다.</h3><p>전체 이동 이력을 표와 CSV 첨부파일로 보내드립니다.</p><br/>$htmlTable"
-
-                com.czt.bbt.util.NotificationHelper.sendEmailWithAttachment(
-                    context, googleEmail.value, googleAppPassword.value, googleEmail.value, 
-                    subject, content, "RideHistory.csv", csvBytes
-                )
+                val subject = "[BBT] 전체 이동 이력 보고서 (${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())})"; val content = "<h3>안녕하세요, BBT 이동 이력 보고서입니다.</h3><p>전체 이동 이력을 표와 CSV 첨부파일로 보내드립니다.</p><br/>$htmlTable"
+                com.czt.bbt.util.NotificationHelper.sendEmailWithAttachment(context, googleEmail.value, googleAppPassword.value, googleEmail.value, subject, content, "RideHistory.csv", csvBytes)
                 android.widget.Toast.makeText(context, "메일이 전송되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                errorMessage.value = "메일 전송 실패: ${e.message}"
-            } finally {
-                isLoading.value = false
-            }
+            } catch (e: Exception) { errorMessage.value = "메일 전송 실패: ${e.message}" } finally { isLoading.value = false }
         }
     }
 

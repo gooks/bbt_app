@@ -378,10 +378,43 @@ class BusRepository @Inject constructor(
 
     fun getAllRideAlerts(): Flow<List<RideAlert>> = busDao.getAllRideAlerts()
     fun getAllArrivalAlerts(): Flow<List<ArrivalAlert>> = busDao.getAllArrivalAlerts()
-    suspend fun insertRideHistory(history: RideHistory) = busDao.insertRideHistory(history)
+    suspend fun insertRideHistory(history: RideHistory): Long {
+        val newHistory = history.copy(lastModified = System.currentTimeMillis())
+        val id = busDao.insertRideHistory(newHistory)
+        val finalHistory = newHistory.copy(id = id)
+
+        if (isOnline()) {
+            uploadCloudObject("histories", finalHistory)
+        } else {
+            logSystem("OFFLINE", "Queuing ADD RideHistory ID $id")
+            busDao.insertPendingChange(PendingChange(type = "ADD", objectType = "RideHistory", objectId = id, objectJson = gson.toJson(finalHistory)))
+        }
+        return id
+    }
+
     fun getAllRideHistories(): Flow<List<RideHistory>> = busDao.getAllRideHistories()
-    suspend fun updateRideHistory(history: RideHistory) = busDao.updateRideHistory(history)
-    suspend fun deleteRideHistory(history: RideHistory) = busDao.deleteRideHistory(history)
+
+    suspend fun updateRideHistory(history: RideHistory) {
+        val updatedHistory = history.copy(lastModified = System.currentTimeMillis())
+        busDao.updateRideHistory(updatedHistory)
+
+        if (isOnline()) {
+            uploadCloudObject("histories", updatedHistory)
+        } else {
+            logSystem("OFFLINE", "Queuing EDIT RideHistory ID ${updatedHistory.id}")
+            busDao.insertPendingChange(PendingChange(type = "EDIT", objectType = "RideHistory", objectId = updatedHistory.id, objectJson = gson.toJson(updatedHistory)))
+        }
+    }
+
+    suspend fun deleteRideHistory(history: RideHistory) {
+        busDao.deleteRideHistory(history)
+        if (isOnline()) {
+            deleteCloudObject("histories", history.id)
+        } else {
+            logSystem("OFFLINE", "Queuing DELETE RideHistory ID ${history.id}")
+            busDao.insertPendingChange(PendingChange(type = "DELETE", objectType = "RideHistory", objectId = history.id, objectJson = null, timestamp = System.currentTimeMillis()))
+        }
+    }
 
     suspend fun saveGoogleAppPasswordToCloud(password: String) {
         val uid = getUserId(); if (uid.isEmpty()) return

@@ -570,7 +570,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 "이동구간: ${formatCombined(bStation)} ~ ${formatCombined(dStation)}"
             }
 
-            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, busNo, plateNo, timeStr, station, type, main) }
+            alert.shareEmails.forEach { com.czt.bbt.util.NotificationHelper.sendEmail(this@BusAlertService, it, busNo, plateNo, timeStr, station, type, main) }
             if (alert.shareKakao) com.czt.bbt.util.NotificationHelper.sendKakaoMessage(this@BusAlertService, busNo, plateNo, timeStr, station, type, main)
         }
     }
