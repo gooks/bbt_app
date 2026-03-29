@@ -69,6 +69,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private val lastArrivalAlertPlate = mutableMapOf<Long, String>()
     private val lastAnnouncedRouteId = mutableMapOf<Long, String>()
     private val garageDepartureAnnounced = mutableMapOf<Long, MutableSet<String>>() // alertId -> set of routeIds
+    private val busWasInGarageAtStart = mutableMapOf<Long, MutableSet<String>>() // alertId -> set of routeIds
     private var lastApproachingPlate: String? = null // 최근 도착 안내된 차량 번호
     private var lastApproachingRouteId: String? = null // 최근 도착 안내된 노선 ID
 
@@ -179,6 +180,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun stopArrivalAll() {
         activeArrivalJobs.keys.toList().forEach { id -> activeArrivalJobs[id]?.cancel(); notificationManager.cancel(NOTIFICATION_ID + id.toInt()) }
         activeArrivalJobs.clear(); activeArrivalAlerts.clear(); lastArrivalAlertStops.clear()
+        garageDepartureAnnounced.clear(); busWasInGarageAtStart.clear()
         BusAlertState.liveStatusFlow.value = emptyMap(); BusAlertState.liveStatusDetailFlow.value = emptyMap(); BusAlertState.activeIdsFlow.value = emptyList()
         getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putString("active_arrival_ids", "").commit()
         notifyWidgetUpdate(); if (mode != Mode.RIDE) stopSelf()
@@ -190,6 +192,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             if (last != null && last.alightTime == null) repository.deleteRideHistory(last)
             getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", -1L).putString("active_arrival_ids", "").commit()
             lastAlertStops = -1; lastArrivalAlertStops.clear()
+            garageDepartureAnnounced.clear(); busWasInGarageAtStart.clear()
             BusAlertState.liveStatusFlow.value = emptyMap(); BusAlertState.liveStatusDetailFlow.value = emptyMap(); BusAlertState.activeIdsFlow.value = emptyList()
             notifyWidgetUpdate(); stopSelf()
         }
@@ -197,6 +200,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     private fun stopIndividualAlert(alertId: Long) {
         activeArrivalJobs[alertId]?.cancel(); activeArrivalJobs.remove(alertId); activeArrivalAlerts.remove(alertId); lastArrivalAlertStops.remove(alertId)
+        garageDepartureAnnounced.remove(alertId); busWasInGarageAtStart.remove(alertId)
         notificationManager.cancel(NOTIFICATION_ID + alertId.toInt())
         BusAlertState.liveStatusFlow.value = BusAlertState.liveStatusFlow.value.toMutableMap().apply { remove(alertId) }
         BusAlertState.liveStatusDetailFlow.value = BusAlertState.liveStatusDetailFlow.value.toMutableMap().apply { remove(alertId) }
@@ -236,17 +240,25 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                                 val busLocs = parseLocationList(locRes.response.msgBody?.busLocationList).filterNotNull()
                                 val boardingSeq = stations.indexOfFirst { it.stationName == boardingStationName }.takeIf { it != -1 } ?: 0
                                 
-                                // 내 정류장(boardingSeq)을 기준으로 가장 가까운 버스 찾기 (지나간 버스도 한 정거장 정도는 후보 유지)
-                                val candidates = busLocs.filter { it.stationSeq >= boardingSeq - 1 && it.stationSeq <= boardingSeq + 1 }
-                                val nearestBus = candidates.minByOrNull { abs(it.stationSeq - boardingSeq) }
-                                    ?: busLocs.filter { it.stationSeq < boardingSeq }.maxByOrNull { it.stationSeq }
+                                // 1. 정류장에 있거나(seq) 방금 지나간(seq+1) 버스를 최우선 후보로 함
+                                val atStationBuses = busLocs.filter { it.stationSeq == boardingSeq || it.stationSeq == boardingSeq + 1 }
+                                val nearestBus = if (atStationBuses.isNotEmpty()) {
+                                    // 정류장에 있는 버스가 여러 대면 더 앞서 있는(출발한) 버스 우선
+                                    atStationBuses.maxByOrNull { it.stationSeq }
+                                } else {
+                                    // 2. 정류장에 버스가 없으면 가장 가까이 다가오는 버스 찾기 (최대 3정거장 전까지)
+                                    val approaching = busLocs.filter { it.stationSeq < boardingSeq && it.stationSeq >= boardingSeq - 3 }
+                                    approaching.maxByOrNull { it.stationSeq }
+                                }
 
                                 if (nearestBus != null) {
+                                    // 이전 차량이 이미 정류장을 충분히 지나갔거나(seq > boardingSeq + 1), 
+                                    // 새로운 차량이 정류장에 더 가깝게 접근했을 때만 업데이트
                                     lastApproachingPlate = nearestBus.plateNo
-                                    Log.d(TAG, "Approaching bus updated: $lastApproachingPlate (seq: ${nearestBus.stationSeq} / mine: $boardingSeq)")
+                                    Log.d(TAG, "Approaching bus candidate: $lastApproachingPlate (seq: ${nearestBus.stationSeq} / mine: $boardingSeq)")
                                 }
                             } catch (e: Exception) { }
-                            delay(20000) // 20초마다 갱신
+                            delay(15000) // 15초마다 갱신 (조금 더 빠르게)
                         }
                     }
                 } ?: stopSelf()
@@ -282,6 +294,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private suspend fun checkArrivalStatus(alertId: Long): Long {
         val alert = activeArrivalAlerts[alertId] ?: return 300000L
         val title = "버스도착알림 : ${alert.stationName}"
+        val isFirstCheck = !busWasInGarageAtStart.containsKey(alertId)
+        if (isFirstCheck) busWasInGarageAtStart[alertId] = mutableSetOf()
+
         try {
             val results = mutableListOf<Triple<String, String, Int>>(); val displayMessages = mutableMapOf<String, String>(); val detailMessages = mutableMapOf<String, String>()
             val res = repository.getBusArrivalListV2(alert.stationId)
@@ -298,13 +313,17 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                         detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.locationNo1.toIntSafe()}정거장 전 ${item.stationNm1} $stateStr"
                         results.add(Triple(busName, rId, p1))
 
-                        // 차고지 출발 알림 (최초 1회)
-                        val announcedSet = garageDepartureAnnounced.getOrPut(alertId) { mutableSetOf() }
-                        if (!announcedSet.contains(rId)) {
-                            announcedSet.add(rId)
-                            val ttsMsg = "차고지에서 ${busName}번 버스가 출발했습니다. ${mins}분 ${secs}초 후 도착 예정입니다."
-                            speak(ttsMsg)
-                            Log.d(TAG, "Garage departure announced: $ttsMsg")
+                        // 차고지 출발 알림 (최초 출발 시 알림시작 시에 차고지에 있다가 출발한 경우만 알림)
+                        if (busWasInGarageAtStart[alertId]?.contains(rId) == true) {
+                            val announcedSet = garageDepartureAnnounced.getOrPut(alertId) { mutableSetOf() }
+                            if (!announcedSet.contains(rId)) {
+                                announcedSet.add(rId)
+                                val pNo = item.plateNo1 ?: ""
+                                val pTts = if (pNo.isNotEmpty()) ", 차량번호 ${Regex("""\d{4}$""").find(pNo)?.value}가" else "가"
+                                val ttsMsg = "${busName}번 버스$pTts 차고지에서 출발했습니다. ${mins}분 ${secs}초 후 도착 예정입니다."
+                                speak(ttsMsg)
+                                Log.d(TAG, "Garage departure announced: $ttsMsg")
+                            }
                         }
                     } else {
                         val stations = routeStationsCache[rId] ?: repository.getBusRouteStations(rId).also { routeStationsCache[rId] = it }
@@ -331,6 +350,8 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                                 results.add(Triple(busName, rId, totalEstSec))
                             } else {
                                 // 2. 이전에 버스가 없으면 (모두 지나갔거나 차고지 대기 중), 차고지 기반 계산
+                                if (isFirstCheck) busWasInGarageAtStart[alertId]?.add(rId)
+                                
                                 val lastBus = busLocs.maxByOrNull { it.stationSeq }
                                 val totalStations = stations.size
                                 val timeToFinish = if (lastBus != null) (totalStations - lastBus.stationSeq).coerceAtLeast(0) * 120.0 else 0.0
@@ -372,7 +393,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 val threshold = if (minTimeSec <= 65) 1 else 3
                 if (lastArrivalAlertStops[alertId] != threshold) { 
                     triggerAlertEffects()
-                    val msg = if (threshold == 1) "[도착 알림] $busName 번 버스$plateTts 잠시 후 도착합니다." else "[도착 알림] $busName 번 버스$plateTts 약 3분 후에 도착합니다."
+                    val msg = if (threshold == 1) "${busName}번 버스$plateTts 잠시 후 도착합니다." else "${busName}번 버스$plateTts 약 3분 후에 도착합니다."
                     speak(msg)
                     lastArrivalAlertStops[alertId] = threshold 
                 } 
