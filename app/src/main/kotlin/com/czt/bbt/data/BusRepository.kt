@@ -35,6 +35,7 @@ class BusRepository @Inject constructor(
 
     private var rideAlertsListener: ListenerRegistration? = null
     private var arrivalAlertsListener: ListenerRegistration? = null
+    private var rideHistoriesListener: ListenerRegistration? = null
 
 
     // --- New Synchronization Logic ---
@@ -89,6 +90,19 @@ class BusRepository @Inject constructor(
                 updateLocalFromCloud(cloudAlerts, busDao::getAllArrivalAlertsOnce, busDao::insertArrivalAlert, busDao::updateArrivalAlert, busDao::deleteArrivalAlertById)
             }
         }
+
+        val rideHistoriesCollection = firestore.collection("users").document(uid).collection("histories")
+        rideHistoriesListener = rideHistoriesCollection.addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                repositoryScope.launch { logSystem("SYNC_RT_FAIL", "RideHistories listener error: ${e.message}") }
+                return@addSnapshotListener
+            }
+            repositoryScope.launch {
+                val cloudHistories = snapshots?.toObjects(RideHistory::class.java) ?: emptyList()
+                logSystem("SYNC_RT", "Received ${cloudHistories.size} RideHistories from cloud.")
+                updateLocalFromCloud(cloudHistories, busDao::getAllRideHistoriesOnce, busDao::insertRideHistory, busDao::updateRideHistory, busDao::deleteRideHistoryById)
+            }
+        }
     }
     
     /**
@@ -98,8 +112,10 @@ class BusRepository @Inject constructor(
         repositoryScope.launch { logSystem("SYNC_RT", "Detaching realtime sync listeners.") }
         rideAlertsListener?.remove()
         arrivalAlertsListener?.remove()
+        rideHistoriesListener?.remove()
         rideAlertsListener = null
         arrivalAlertsListener = null
+        rideHistoriesListener = null
     }
 
     private suspend inline fun <reified T : CloudSyncable> updateLocalFromCloud(
@@ -330,6 +346,19 @@ class BusRepository @Inject constructor(
         } else {
             logSystem("OFFLINE", "Queuing DELETE ArrivalAlert ID ${alert.id}")
             busDao.insertPendingChange(PendingChange(type = "DELETE", objectType = "ArrivalAlert", objectId = alert.id, objectJson = null, timestamp = System.currentTimeMillis()))
+        }
+    }
+
+    suspend fun updateArrivalAlertsOrder(alerts: List<ArrivalAlert>) {
+        val updatedAlerts = alerts.map { it.copy(lastModified = System.currentTimeMillis()) }
+        busDao.updateArrivalAlerts(updatedAlerts)
+        
+        if (isOnline()) {
+            updatedAlerts.forEach { uploadCloudObject("arrival_alerts", it) }
+        } else {
+            updatedAlerts.forEach { alert ->
+                busDao.insertPendingChange(PendingChange(type = "EDIT", objectType = "ArrivalAlert", objectId = alert.id, objectJson = gson.toJson(alert)))
+            }
         }
     }
 

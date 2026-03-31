@@ -56,6 +56,7 @@ class BusViewModel @Inject constructor(
     var arrivalBusList = mutableStateListOf<BusInfo>() 
     var arrivalSelectedBuses = mutableStateListOf<String>() 
     var arrivalSelectedBusNames = mutableStateListOf<String>() 
+    var arrivalAlias = mutableStateOf("")
     var editingArrivalAlert = mutableStateOf<ArrivalAlert?>(null)
 
     var errorMessage = mutableStateOf<String?>(null)
@@ -106,6 +107,7 @@ class BusViewModel @Inject constructor(
         
         // 앱 시작 시 로그인 상태 확인 및 동기화 시도
         if (googleUserId.value.isNotEmpty()) {
+            repository.registerRealtimeSync() // 실시간 리스너 등록 추가
             forceSyncAndRefresh()
         }
         checkKakaoLoginStatus()
@@ -144,6 +146,27 @@ class BusViewModel @Inject constructor(
             val item = list.removeAt(fromIndex)
             list.add(toIndex, item)
             _arrivalLiveStatusIds.value = list
+            
+            // 실시간 현황 순서 영속화: activeArrivalIds 순서 업데이트 및 저장
+            activeArrivalIds.clear()
+            activeArrivalIds.addAll(list)
+            saveState()
+        }
+    }
+
+    fun moveArrivalAlert(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            val currentAlerts = arrivalAlerts.value.toMutableList()
+            if (fromIndex in currentAlerts.indices && toIndex in currentAlerts.indices) {
+                val item = currentAlerts.removeAt(fromIndex)
+                currentAlerts.add(toIndex, item)
+                
+                // 새로운 순서 할당 (sortOrder 업데이트)
+                val updatedAlerts = currentAlerts.mapIndexed { index, alert ->
+                    alert.copy(sortOrder = index)
+                }
+                repository.updateArrivalAlertsOrder(updatedAlerts)
+            }
         }
     }
 
@@ -403,6 +426,7 @@ class BusViewModel @Inject constructor(
         arrivalSelectedStation.value = StationInfo(alert.stationName, alert.stationId, alert.stationNo)
         arrivalSelectedBuses.clear(); arrivalSelectedBuses.addAll(alert.targetBusNumbers)
         arrivalSelectedBusNames.clear(); arrivalSelectedBusNames.addAll(alert.targetBusNames)
+        arrivalAlias.value = alert.alias ?: ""
         loadBusesAtStation(alert.stationId)
     }
 
@@ -410,8 +434,17 @@ class BusViewModel @Inject constructor(
         val station = arrivalSelectedStation.value ?: return
         if (arrivalSelectedBuses.isEmpty()) return
         viewModelScope.launch {
+            val currentAlerts = arrivalAlerts.value
+            val nextOrder = if (editingArrivalAlert.value == null) {
+                (currentAlerts.maxOfOrNull { it.sortOrder } ?: -1) + 1
+            } else {
+                editingArrivalAlert.value!!.sortOrder
+            }
+            
             val alert = ArrivalAlert(
                 id = editingArrivalAlert.value?.id ?: 0, stationName = station.name, stationId = station.id, stationNo = station.no,
+                alias = arrivalAlias.value.takeIf { it.isNotBlank() },
+                sortOrder = nextOrder,
                 targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList(), lastModified = System.currentTimeMillis()
             )
             if (editingArrivalAlert.value == null) repository.insertArrivalAlert(alert) else repository.updateArrivalAlert(alert)
@@ -419,7 +452,7 @@ class BusViewModel @Inject constructor(
         }
     }
 
-    fun resetArrivalForm() { arrivalSelectedStation.value = null; arrivalStationSearchResult.clear(); arrivalBusList.clear(); arrivalStationSearchQuery.value = ""; arrivalSelectedBuses.clear(); arrivalSelectedBusNames.clear(); editingArrivalAlert.value = null }
+    fun resetArrivalForm() { arrivalSelectedStation.value = null; arrivalStationSearchResult.clear(); arrivalBusList.clear(); arrivalStationSearchQuery.value = ""; arrivalSelectedBuses.clear(); arrivalSelectedBusNames.clear(); arrivalAlias.value = ""; editingArrivalAlert.value = null }
     fun toggleArrivalBusSelection(bus: BusInfo) { if (arrivalSelectedBuses.contains(bus.routeId)) { arrivalSelectedBuses.remove(bus.routeId); arrivalSelectedBusNames.remove(bus.name) } else { arrivalSelectedBuses.add(bus.routeId); arrivalSelectedBusNames.add(bus.name) } }
     fun startRideAlert(alert: RideAlert) { activeRideAlertId.value = alert.id; saveState(); sendServiceAction(BusAlertService.ACTION_START_RIDE, alert.id) }
     fun startArrivalAlert(alert: ArrivalAlert) { if (!activeArrivalIds.contains(alert.id)) activeArrivalIds.add(alert.id); saveState(); sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, alert.id) }
@@ -435,7 +468,7 @@ class BusViewModel @Inject constructor(
     }
 
     var historyBusNoFilter = mutableStateOf("")
-    var historyStartDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(System.currentTimeMillis() - 5 * 24 * 60 * 60 * 1000L)))
+    var historyStartDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)))
     var historyEndDate = mutableStateOf(java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date()))
     val filteredHistory = mutableStateListOf<RideHistory>()
     val historySelectedIds = mutableStateListOf<Long>()
@@ -468,25 +501,132 @@ class BusViewModel @Inject constructor(
     fun exportToCsv(isAll: Boolean) {
         viewModelScope.launch {
             try {
-                val data = if (isAll) repository.getAllRideHistoriesSorted() else filteredHistory.reversed()
+                val data = if (isAll) repository.getAllRideHistoriesSorted() else filteredHistory.toList().reversed()
                 if (data.isEmpty()) { errorMessage.value = "출력할 데이터가 없습니다."; return@launch }
                 val fileName = "RideHistory_${java.text.SimpleDateFormat("yyyyMMdd_HHmm").format(java.util.Date())}.csv"
-                val contentValues = android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName); put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv"); put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS) }
+                val contentValues = android.content.ContentValues().apply { 
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS) 
+                }
                 val uri = context.contentResolver.insert(android.provider.MediaStore.Files.getContentUri("external"), contentValues)
                 uri?.let {
                     context.contentResolver.openOutputStream(it)?.use { os ->
                         val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(os, "EUC-KR"))
-                        writer.write("일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID"); writer.newLine()
+                        writer.write("ID,일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID")
+                        writer.newLine()
                         data.forEach { h ->
                             val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
                             val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
-                            writer.write(listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",")); writer.newLine()
+                            val row = listOf(
+                                h.id.toString(), h.date, h.dayOfWeek, boardingStr, alightStr, 
+                                h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", 
+                                h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", 
+                                h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", 
+                                h.boardingStationId, h.alightStationId ?: ""
+                            ).joinToString(",")
+                            writer.write(row)
+                            writer.newLine()
                         }
                         writer.flush()
                     }
                     android.widget.Toast.makeText(context, "다운로드 폴더에 CSV가 저장되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) { errorMessage.value = "CSV 저장 실패: ${e.message}" }
+        }
+    }
+
+    fun importFromCsv(uri: android.net.Uri) {
+        viewModelScope.launch {
+            isLoading.value = true
+            try {
+                val existingHistories = repository.getAllRideHistoriesSorted()
+                val existingIds = existingHistories.map { it.id }.toSet()
+                val newHistories = mutableListOf<RideHistory>()
+                
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, "EUC-KR"))
+                    val header = reader.readLine() // Header skip
+                    var line: String? = reader.readLine() // 첫 번째 데이터 줄 읽기
+                    
+                    val sdfTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                    val sdfDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    
+                    while (line != null) {
+                        val tokens = line!!.split(",")
+                        if (tokens.size >= 16) {
+                            val id = tokens[0].toLongOrNull()
+                            if (id != null && !existingIds.contains(id)) {
+                                try {
+                                    val dateStr = tokens[1]
+                                    val boardingTimeStr = tokens[3]
+                                    val alightTimeStr = tokens[4]
+                                    
+                                    val date = sdfDate.parse(dateStr) ?: throw Exception("Invalid date")
+                                    val boardingTime = sdfTime.parse(boardingTimeStr)?.let {
+                                        val cal = java.util.Calendar.getInstance()
+                                        cal.time = date
+                                        val tCal = java.util.Calendar.getInstance()
+                                        tCal.time = it
+                                        cal.set(java.util.Calendar.HOUR_OF_DAY, tCal.get(java.util.Calendar.HOUR_OF_DAY))
+                                        cal.set(java.util.Calendar.MINUTE, tCal.get(java.util.Calendar.MINUTE))
+                                        cal.set(java.util.Calendar.SECOND, 0)
+                                        cal.timeInMillis
+                                    } ?: throw Exception("Invalid boarding time")
+                                    
+                                    val alightTime = if (alightTimeStr.isNotEmpty()) {
+                                        sdfTime.parse(alightTimeStr)?.let {
+                                            val cal = java.util.Calendar.getInstance()
+                                            cal.time = date
+                                            val tCal = java.util.Calendar.getInstance()
+                                            tCal.time = it
+                                            cal.set(java.util.Calendar.HOUR_OF_DAY, tCal.get(java.util.Calendar.HOUR_OF_DAY))
+                                            cal.set(java.util.Calendar.MINUTE, tCal.get(java.util.Calendar.MINUTE))
+                                            cal.set(java.util.Calendar.SECOND, 0)
+                                            cal.timeInMillis
+                                        }
+                                    } else null
+                                    
+                                    newHistories.add(RideHistory(
+                                        id = id,
+                                        date = dateStr,
+                                        dayOfWeek = tokens[2],
+                                        boardingTime = boardingTime,
+                                        alightTime = alightTime,
+                                        durationMinutes = tokens[5].toIntOrNull(),
+                                        busNumber = tokens[6],
+                                        plateNumber = tokens[7].takeIf { it.isNotEmpty() },
+                                        boardingStationNo = tokens[8].takeIf { it.isNotEmpty() },
+                                        boardingStationName = tokens[9],
+                                        alightStationNo = tokens[10].takeIf { it.isNotEmpty() },
+                                        alightStationName = tokens[11].takeIf { it.isNotEmpty() },
+                                        busRouteId = tokens[12],
+                                        vehicleId = tokens[13].takeIf { it.isNotEmpty() },
+                                        boardingStationId = tokens[14],
+                                        alightStationId = tokens[15].takeIf { it.isNotEmpty() }
+                                    ))
+                                } catch (e: Exception) {
+                                    android.util.Log.e("BusViewModel", "Line parsing error: ${e.message}")
+                                }
+                            }
+                        }
+                        line = reader.readLine() // 다음 줄 읽기
+                    }
+                }
+                
+                if (newHistories.isNotEmpty()) {
+                    newHistories.forEach { repository.insertRideHistory(it) }
+                    repository.reconcileWithCloud()
+                    searchRideHistory()
+                    android.widget.Toast.makeText(context, "${newHistories.size}건의 새로운 이력이 등록되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(context, "추가할 새로운 이력이 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                errorMessage.value = "이력 가져오기 실패: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
@@ -497,14 +637,40 @@ class BusViewModel @Inject constructor(
             try {
                 val data = repository.getAllRideHistoriesSorted()
                 if (data.isEmpty()) { errorMessage.value = "전송할 데이터가 없습니다."; return@launch }
-                val csvHeader = "일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID\n"
-                val csvBody = data.joinToString("\n") { h -> val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime)); val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""; listOf(h.date, h.dayOfWeek, boardingStr, alightStr, h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", h.boardingStationId, h.alightStationId ?: "").joinToString(",") }
+                
+                // CSV 생성 (ID 포함)
+                val csvHeader = "ID,일자,요일,승차시간,하차시간,소요시간(분),버스번호,차량번호,승차정류장번호,승차정류장명,하차정류장번호,하차정류장명,버스ID,차량ID,승차정류장ID,하차정류장ID\n"
+                val csvBody = data.joinToString("\n") { h -> 
+                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
+                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: ""
+                    listOf(
+                        h.id.toString(), h.date, h.dayOfWeek, boardingStr, alightStr, 
+                        h.durationMinutes?.toString() ?: "", h.busNumber, h.plateNumber ?: "", 
+                        h.boardingStationNo ?: "", h.boardingStationName, h.alightStationNo ?: "", 
+                        h.alightStationName ?: "", h.busRouteId, h.vehicleId ?: "", 
+                        h.boardingStationId, h.alightStationId ?: ""
+                    ).joinToString(",") 
+                }
                 val csvBytes = (csvHeader + csvBody).toByteArray(java.nio.charset.Charset.forName("EUC-KR"))
+                
                 val htmlTable = StringBuilder("<table border='1' style='border-collapse:collapse; width:100%; font-size:11px;'>")
-                htmlTable.append("<tr style='background-color:#f2f2f2;'><th>일자</th><th>요일</th><th>승차</th><th>하차</th><th>소요</th><th>버스</th><th>차량번호</th><th>승차번호</th><th>승차정류장</th><th>하차번호</th><th>하차정류장</th><th>버스ID</th><th>차량ID</th><th>승차ID</th><th>하차ID</th></tr>")
-                data.reversed().forEach { h -> val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime)); val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: "-"; val durationStr = h.durationMinutes?.let { "${it}분" } ?: "-"; htmlTable.append("<tr>"); listOf(h.date, h.dayOfWeek, boardingStr, alightStr, durationStr, h.busNumber, h.plateNumber ?: "-", h.boardingStationNo ?: "-", h.boardingStationName, h.alightStationNo ?: "-", h.alightStationName ?: "-", h.busRouteId, h.vehicleId ?: "-", h.boardingStationId, h.alightStationId ?: "-").forEach { htmlTable.append("<td style='padding:4px;'>$it</td>") }; htmlTable.append("</tr>") }
+                htmlTable.append("<tr style='background-color:#f2f2f2;'><th>ID</th><th>일자</th><th>요일</th><th>승차</th><th>하차</th><th>소요</th><th>버스</th><th>차량번호</th><th>승차정류장</th><th>하차정류장</th></tr>")
+                data.reversed().forEach { h -> 
+                    val boardingStr = java.text.SimpleDateFormat("HH:mm").format(java.util.Date(h.boardingTime))
+                    val alightStr = h.alightTime?.let { java.text.SimpleDateFormat("HH:mm").format(java.util.Date(it)) } ?: "-"
+                    val durationStr = h.durationMinutes?.let { "${it}분" } ?: "-"
+                    htmlTable.append("<tr>")
+                    listOf(
+                        h.id.toString(), h.date, h.dayOfWeek, boardingStr, alightStr, 
+                        durationStr, h.busNumber, h.plateNumber ?: "-", 
+                        h.boardingStationName, h.alightStationName ?: "-"
+                    ).forEach { htmlTable.append("<td style='padding:4px;'>$it</td>") }
+                    htmlTable.append("</tr>") 
+                }
                 htmlTable.append("</table>")
-                val subject = "[BBT] 전체 이동 이력 보고서 (${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())})"; val content = "<h3>안녕하세요, BBT 이동 이력 보고서입니다.</h3><p>전체 이동 이력을 표와 CSV 첨부파일로 보내드립니다.</p><br/>$htmlTable"
+                
+                val subject = "[버스알림] 전체이동이력 (${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())})"
+                val content = "<h3>안녕하세요, 버스알림 앱의 전체 버스이동이력입니다.</h3><p>표와 CSV 첨부파일로 보내드립니다. 첨부된 CSV 파일의 ID 컬럼을 통해 중복 없이 이력 등록이 가능합니다.</p><br/>$htmlTable"
                 com.czt.bbt.util.NotificationHelper.sendEmailWithAttachment(context, googleEmail.value, googleAppPassword.value, googleEmail.value, subject, content, "RideHistory.csv", csvBytes)
                 android.widget.Toast.makeText(context, "메일이 전송되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
             } catch (e: Exception) { errorMessage.value = "메일 전송 실패: ${e.message}" } finally { isLoading.value = false }

@@ -26,14 +26,17 @@ interface BusDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertArrivalAlert(alert: ArrivalAlert): Long
 
-    @Query("SELECT * FROM arrival_alerts")
+    @Query("SELECT * FROM arrival_alerts ORDER BY sortOrder ASC")
     fun getAllArrivalAlerts(): Flow<List<ArrivalAlert>>
 
-    @Query("SELECT * FROM arrival_alerts")
+    @Query("SELECT * FROM arrival_alerts ORDER BY sortOrder ASC")
     suspend fun getAllArrivalAlertsOnce(): List<ArrivalAlert>
 
     @Update
     suspend fun updateArrivalAlert(alert: ArrivalAlert)
+
+    @Update
+    suspend fun updateArrivalAlerts(alerts: List<ArrivalAlert>)
 
     @Delete
     suspend fun deleteArrivalAlert(alert: ArrivalAlert)
@@ -50,6 +53,12 @@ interface BusDao {
 
     @Query("SELECT * FROM ride_histories ORDER BY boardingTime DESC")
     fun getAllRideHistories(): Flow<List<RideHistory>>
+
+    @Query("SELECT * FROM ride_histories")
+    suspend fun getAllRideHistoriesOnce(): List<RideHistory>
+
+    @Query("DELETE FROM ride_histories WHERE id = :historyId")
+    suspend fun deleteRideHistoryById(historyId: Long)
 
     @Query("SELECT * FROM ride_histories WHERE (busNumber LIKE '%' || :busNo || '%') AND (date BETWEEN :startDate AND :endDate) ORDER BY date DESC, boardingTime DESC")
     suspend fun getFilteredRideHistories(busNo: String, startDate: String, endDate: String): List<RideHistory>

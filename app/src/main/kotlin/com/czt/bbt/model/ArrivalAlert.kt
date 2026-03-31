@@ -10,6 +10,8 @@ data class ArrivalAlert(
     val stationName: String = "",
     val stationId: String = "",
     val stationNo: String = "", // 정류소 번호 추가
+    val alias: String? = null, // 별칭 추가
+    val sortOrder: Int = 0, // 순서 추가
     @TypeConverters(Converters::class)
     val targetBusNumbers: List<String> = emptyList(), // RouteIDs
     @TypeConverters(Converters::class)

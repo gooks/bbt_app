@@ -2,6 +2,7 @@ package com.czt.bbt.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +36,12 @@ fun RideHistoryListScreen(viewModel: BusViewModel, onBack: () -> Unit) {
     
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    
+    val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { viewModel.importFromCsv(it) }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -113,7 +120,8 @@ fun RideHistoryListScreen(viewModel: BusViewModel, onBack: () -> Unit) {
                             viewModel.deleteSelectedHistories() 
                         }
                         ActionBtn("출력", modifier = Modifier.weight(1f)) { viewModel.exportToCsv(false) }
-                        ActionBtn("전체출력", modifier = Modifier.weight(1.2f)) { viewModel.exportToCsv(true) }
+                        ActionBtn("전체", modifier = Modifier.weight(1f)) { viewModel.exportToCsv(true) }
+                        ActionBtn("등록", modifier = Modifier.weight(1f)) { filePickerLauncher.launch("*/*") }
                         ActionBtn("메일", modifier = Modifier.weight(1f)) { viewModel.sendHistoryEmail() }
                     }
                     Divider()
@@ -150,8 +158,28 @@ fun RideHistoryListScreen(viewModel: BusViewModel, onBack: () -> Unit) {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(results) { item ->
                                 val isSelected = selectedIds.contains(item.id)
+                                val context = androidx.compose.ui.platform.LocalContext.current
+
+                                val bName = if (!item.boardingStationNo.isNullOrEmpty()) "[${item.boardingStationNo}]${item.boardingStationName}" else item.boardingStationName
+                                val aName = if (!item.alightStationNo.isNullOrEmpty()) "[${item.alightStationNo}]${item.alightStationName ?: ""}" else (item.alightStationName ?: "")
+
                                 Row(
-                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    modifier = Modifier
+                                        .padding(vertical = 4.dp)
+                                        .clickable {
+                                            val dStr = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(item.boardingTime))
+                                            val bTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(item.boardingTime))
+                                            val aTime = if (item.alightTime != null) SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(item.alightTime)) else "탑승중"
+                                            val dur = if (item.alightTime != null) " (${(item.alightTime - item.boardingTime) / 60000}분)" else "미확정"
+
+                                            val shareText = "[버스알림 이력]\n일자: $dStr\n버스: ${item.busNumber} (${item.plateNumber ?: "차량미확인"})\n승차: $bName ($bTime)\n하차: ${if (aName.isEmpty()) "미정" else aName} ($aTime)\n소요시간: $dur"
+                                            val sendIntent = android.content.Intent().apply {
+                                                action = android.content.Intent.ACTION_SEND
+                                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                type = "text/plain"
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(sendIntent, "이력 공유하기"))
+                                        },
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Checkbox(

@@ -1,6 +1,7 @@
 package com.czt.bbt.ui.screens
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -23,6 +24,7 @@ import com.czt.bbt.ui.BusViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ArrivalStatusScreen(viewModel: BusViewModel) {
     val activeIds by viewModel.arrivalLiveStatusIds.collectAsState()
@@ -65,35 +67,16 @@ fun ArrivalStatusScreen(viewModel: BusViewModel) {
             ) {
                 itemsIndexed(items = activeIds, key = { _, id -> id }) { index: Int, id: Long ->
                     val statusText = liveDetail[id] ?: "도착 정보를 불러오는 중입니다..."
+                    val alert = arrivalAlerts.find { it.id == id }
+                    val title = alert?.alias ?: alert?.stationName ?: "알 수 없는 정류장"
                     
                     val isDragging = draggedItemIndex == index
-                    val elevation by animateDpAsState(if (isDragging) 8.dp else 2.dp)
+                    val elevation by animateDpAsState(if (isDragging) 8.dp else 2.dp, label = "elevation")
                     
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(index) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { dragOffset = 0f; draggedItemIndex = index },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffset += dragAmount.y
-                                        
-                                        val threshold = 100f
-                                        if (dragOffset > threshold && index < activeIds.size - 1) {
-                                            viewModel.moveArrivalItem(index, index + 1)
-                                            draggedItemIndex = index + 1
-                                            dragOffset = 0f
-                                        } else if (dragOffset < -threshold && index > 0) {
-                                            viewModel.moveArrivalItem(index, index - 1)
-                                            draggedItemIndex = index - 1
-                                            dragOffset = 0f
-                                        }
-                                    },
-                                    onDragEnd = { draggedItemIndex = null },
-                                    onDragCancel = { draggedItemIndex = null }
-                                )
-                            },
+                            .animateItemPlacement(),
                         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
                     ) {
                         Row(
@@ -104,6 +87,13 @@ fun ArrivalStatusScreen(viewModel: BusViewModel) {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
+                                    text = title,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                                Text(
                                     text = statusText,
                                     fontSize = 15.sp,
                                     lineHeight = 22.sp,
@@ -113,8 +103,31 @@ fun ArrivalStatusScreen(viewModel: BusViewModel) {
                             Icon(
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = "Drag to reorder",
-                                tint = Color.LightGray,
-                                modifier = Modifier.padding(top = 4.dp)
+                                tint = if (isDragging) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .pointerInput(index) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = { dragOffset = 0f; draggedItemIndex = index },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragOffset += dragAmount.y
+                                                
+                                                val threshold = 80f
+                                                if (dragOffset > threshold && index < activeIds.size - 1) {
+                                                    viewModel.moveArrivalItem(index, index + 1)
+                                                    draggedItemIndex = index + 1
+                                                    dragOffset = 0f
+                                                } else if (dragOffset < -threshold && index > 0) {
+                                                    viewModel.moveArrivalItem(index, index - 1)
+                                                    draggedItemIndex = index - 1
+                                                    dragOffset = 0f
+                                                }
+                                            },
+                                            onDragEnd = { draggedItemIndex = null },
+                                            onDragCancel = { draggedItemIndex = null }
+                                        )
+                                    }
                             )
                         }
                     }

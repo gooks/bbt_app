@@ -88,10 +88,10 @@ fun HistoryScreen(viewModel: BusViewModel) {
                             IconButton(onClick = {
                                 val dStr = SimpleDateFormat("yyyy-MM-dd (E)", Locale.KOREAN).format(Date(log.boardingTime))
                                 val bTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.boardingTime))
-                                val aTime = if (log.alightTime != null) SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.alightTime)) else "??"
-                                val dur = if (log.alightTime != null) " (${(log.alightTime - log.boardingTime) / 60000}분)" else ""
+                                val aTime = if (log.alightTime != null) SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.alightTime)) else "탑승중"
+                                val dur = if (log.alightTime != null) "${(log.alightTime - log.boardingTime) / 60000}분" else "미확정"
 
-                                val shareText = "[버스알림 이력]\n일자: $dStr\n버스: ${log.busNumber} (${log.plateNumber ?: "차량미확인"})\n승차: ${log.boardingStationName} ($bTime)\n하차: ${log.alightStationName ?: "미정"} ($aTime)\n소요시간: $dur"
+                                val shareText = "[버스알림 이력]\n일자: $dStr\n버스: ${log.busNumber} (${log.plateNumber ?: "차량미확인"})\n승차: $bName ($bTime)\n하차: ${if (aName.isEmpty()) "미정" else aName} ($aTime)\n소요시간: $dur"
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(Intent.EXTRA_TEXT, shareText)
@@ -99,10 +99,6 @@ fun HistoryScreen(viewModel: BusViewModel) {
                                 }
                                 context.startActivity(Intent.createChooser(sendIntent, "이력 공유하기"))
                             }) { Icon(Icons.Default.Share, "공유", tint = MaterialTheme.colorScheme.primary) }
-                        }
-
-                        IconButton(onClick = { viewModel.deleteHistory(log) }) {
-                            Icon(Icons.Default.Delete, "삭제", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }

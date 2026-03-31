@@ -218,8 +218,6 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         startForeground(NOTIFICATION_ID, createNotification("버스 이동 알림 준비 중..."))
         startLocationUpdates(); notifyWidgetUpdate()
         serviceScope.launch {
-            val histories = repository.getAllRideHistories().first(); val last = histories.maxByOrNull { it.boardingTime }
-            if (last != null && last.alightTime == null) repository.deleteRideHistory(last)
             try {
                 val alert = repository.getAllRideAlerts().first().find { it.id == alertId } ?: run { stopSelf(); return@launch }
                 activeRideAlert = alert; val stations = repository.getBusRouteStations(alert.busRouteId); routeStationsCache[alert.busRouteId] = stations
@@ -293,7 +291,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     private suspend fun checkArrivalStatus(alertId: Long): Long {
         val alert = activeArrivalAlerts[alertId] ?: return 300000L
-        val title = "버스도착알림 : ${alert.stationName}"
+        val title = if (!alert.alias.isNullOrBlank()) alert.alias else "버스도착알림 : ${alert.stationName}"
         val isFirstCheck = !busWasInGarageAtStart.containsKey(alertId)
         if (isFirstCheck) busWasInGarageAtStart[alertId] = mutableSetOf()
 
