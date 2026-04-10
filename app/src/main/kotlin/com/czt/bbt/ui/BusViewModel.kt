@@ -434,20 +434,46 @@ class BusViewModel @Inject constructor(
         val station = arrivalSelectedStation.value ?: return
         if (arrivalSelectedBuses.isEmpty()) return
         viewModelScope.launch {
+            // 현재 정류장에 실제로 경유하는 버스만 필터링
+            val availableRouteIds = arrivalBusList.map { it.routeId }.toSet()
+            val validIndices = arrivalSelectedBuses.indices.filter { index -> 
+                availableRouteIds.contains(arrivalSelectedBuses[index]) 
+            }
+            
+            val finalBuses = validIndices.map { arrivalSelectedBuses[it] }
+            val finalNames = validIndices.map { arrivalSelectedBusNames[it] }
+
+            if (finalBuses.isEmpty()) {
+                errorMessage.value = "선택한 정류장에 경유하는 대상 버스가 없어 저장할 수 없습니다."
+                return@launch
+            }
+
             val currentAlerts = arrivalAlerts.value
-            val nextOrder = if (editingArrivalAlert.value == null) {
+            val editingId = editingArrivalAlert.value?.id ?: 0L
+            val isEdit = editingId != 0L
+            
+            val nextOrder = if (!isEdit) {
                 (currentAlerts.maxOfOrNull { it.sortOrder } ?: -1) + 1
             } else {
                 editingArrivalAlert.value!!.sortOrder
             }
             
             val alert = ArrivalAlert(
-                id = editingArrivalAlert.value?.id ?: 0, stationName = station.name, stationId = station.id, stationNo = station.no,
+                id = editingId, stationName = station.name, stationId = station.id, stationNo = station.no,
                 alias = arrivalAlias.value.takeIf { it.isNotBlank() },
                 sortOrder = nextOrder,
-                targetBusNumbers = arrivalSelectedBuses.toList(), targetBusNames = arrivalSelectedBusNames.toList(), lastModified = System.currentTimeMillis()
+                targetBusNumbers = finalBuses, 
+                targetBusNames = finalNames, 
+                lastModified = System.currentTimeMillis()
             )
-            if (editingArrivalAlert.value == null) repository.insertArrivalAlert(alert) else repository.updateArrivalAlert(alert)
+            
+            val resultId = if (!isEdit) repository.insertArrivalAlert(alert) else { repository.updateArrivalAlert(alert); editingId }
+            
+            // 수정한 알림이 현재 실행 중이라면 정보 갱신을 위해 서비스 재시작
+            if (activeArrivalIds.contains(resultId)) {
+                sendServiceAction(BusAlertService.ACTION_START_ARRIVAL, resultId)
+            }
+            
             resetArrivalForm()
         }
     }
@@ -678,6 +704,9 @@ class BusViewModel @Inject constructor(
     }
 
     fun deleteRideAlert(alert: RideAlert) = viewModelScope.launch { repository.deleteRideAlert(alert) }
-    fun deleteArrivalAlert(alert: ArrivalAlert) = viewModelScope.launch { repository.deleteArrivalAlert(alert) }
+    fun deleteArrivalAlert(alert: ArrivalAlert) = viewModelScope.launch {
+        if (activeArrivalIds.contains(alert.id)) stopArrivalAlert(alert.id)
+        repository.deleteArrivalAlert(alert)
+    }
     fun deleteHistory(history: RideHistory) = viewModelScope.launch { repository.deleteRideHistory(history) }
 }

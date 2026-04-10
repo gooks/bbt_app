@@ -14,8 +14,8 @@ android {
         applicationId = "com.czt.bbt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20
-        versionName = "0.7.1_01"
+        versionCode = 21
+        versionName = "1.0.0_03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -65,7 +65,7 @@ android {
         }
     }
 
-    // APK ?�일�??�동 변�?(versionName ?�함)
+    // APK 파일 생성 시 이름 변경
     applicationVariants.all {
         val variant = this
         variant.outputs.all {

@@ -277,7 +277,11 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun startArrivalMode(alertId: Long) {
         activeArrivalJobs[alertId]?.cancel()
         serviceScope.launch {
-            val alerts = repository.getAllArrivalAlerts().first(); val alert = alerts.find { it.id == alertId } ?: return@launch
+            val alerts = repository.getAllArrivalAlerts().first(); val alert = alerts.find { it.id == alertId } 
+            if (alert == null) {
+                stopIndividualAlert(alertId)
+                return@launch
+            }
             activeArrivalAlerts[alertId] = alert
             val prefs = getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE); val currentIds = prefs.getString("active_arrival_ids", "") ?: ""
             val idList = currentIds.split(",").filter { it.isNotEmpty() }.toMutableList()
@@ -307,8 +311,12 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                         val stateStr = when(item.stateCd1.toString()) { "0" -> "지나 교차로 통과"; "1" -> "정류소 도착"; "2" -> "정류소 출발"; else -> "지나 운행 중" }
                         val mins = p1 / 60; val secs = p1 % 60; val timeStr = if (mins > 0) "${mins}분 ${secs}초" else "${secs}초"
                         val stopsLeftStr = if (item.locationNo1.toIntSafe() > 0) " (${item.locationNo1.toIntSafe()}정거장 전)" else ""
-                        displayMessages[rId] = "[$busName] $timeStr 후 도착$stopsLeftStr"
-                        detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.locationNo1.toIntSafe()}정거장 전 ${item.stationNm1} $stateStr"
+                        
+                        val occuUi = getOccupancyInfo(item, false)
+                        val occuSuffix = if (occuUi.isNotEmpty()) " | $occuUi" else ""
+                        
+                        displayMessages[rId] = "[$busName] $timeStr 후 도착$stopsLeftStr$occuSuffix"
+                        detailMessages[rId] = "- 버스(차량)번호 : $busName (${item.plateNo1})\n- 도착예정시간 : $timeStr 후 도착\n- 현재위치 : ${item.locationNo1.toIntSafe()}정거장 전 ${item.stationNm1} $stateStr" + (if (occuUi.isNotEmpty()) "\n- $occuUi" else "")
                         results.add(Triple(busName, rId, p1))
 
                         // 차고지 출발 알림 (최초 출발 시 알림시작 시에 차고지에 있다가 출발한 경우만 알림)
@@ -317,8 +325,10 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                             if (!announcedSet.contains(rId)) {
                                 announcedSet.add(rId)
                                 val pNo = item.plateNo1 ?: ""
-                                val pTts = if (pNo.isNotEmpty()) ", 차량번호 ${Regex("""\d{4}$""").find(pNo)?.value}가" else "가"
-                                val ttsMsg = "${busName}번 버스$pTts 차고지에서 출발했습니다. ${mins}분 ${secs}초 후 도착 예정입니다."
+                                val pTts = if (pNo.isNotEmpty()) ", 차량번호 ${Regex("""\d{4}$""").find(pNo)?.value}번 이" else "가"
+                                
+                                val occuTts = getOccupancyInfo(item, true)
+                                val ttsMsg = "${busName}번 버스$pTts 차고지에서 출발했습니다. ${mins}분 ${secs}초 후 도착 예정입니다.$occuTts"
                                 speak(ttsMsg)
                                 Log.d(TAG, "Garage departure announced: $ttsMsg")
                             }
@@ -386,12 +396,16 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                 lastArrivalAlertPlate[alertId] = plateNo
             }
 
-            val plateTts = if (plateNo.isNotEmpty() && !plateNo.contains("정보없음")) ", 차량번호 ${Regex("""\d{4}$""").find(plateNo)?.value}가" else "가"
+            val plateTts = if (plateNo.isNotEmpty() && !plateNo.contains("정보없음")) ", 차량번호 ${Regex("""\d{4}$""").find(plateNo)?.value}번 이" else "가"
             if (minTimeSec <= 180) { 
                 val threshold = if (minTimeSec <= 65) 1 else 3
                 if (lastArrivalAlertStops[alertId] != threshold) { 
                     triggerAlertEffects()
-                    val msg = if (threshold == 1) "${busName}번 버스$plateTts 잠시 후 도착합니다." else "${busName}번 버스$plateTts 약 3분 후에 도착합니다."
+                    
+                    val currentItem = arrivalList.find { it.routeId.toIntSafe().toString() == busRouteId }
+                    val occuTts = if (currentItem != null) getOccupancyInfo(currentItem, true) else ""
+                    val msg = if (threshold == 1) "${busName}번 버스$plateTts 잠시 후 도착합니다.$occuTts" else "${busName}번 버스$plateTts 약 3분 후에 도착합니다.$occuTts"
+                    
                     speak(msg)
                     lastArrivalAlertStops[alertId] = threshold 
                 } 
@@ -712,6 +726,42 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private fun parseLocationList(data: Any?): List<com.czt.bbt.api.GBusLocationItem> { val json = gson.toJson(data ?: return emptyList()); return try { if (json.startsWith("[")) gson.fromJson(json, object : TypeToken<List<com.czt.bbt.api.GBusLocationItem>>() {}.type) else listOf(gson.fromJson(json, com.czt.bbt.api.GBusLocationItem::class.java)) } catch (e: Exception) { emptyList() } }
     private fun <T : Any> List<T>.indexOfMinByOrNull(selector: (T) -> Float): Int? { if (isEmpty()) return null; var minIndex = 0; var minValue = selector(this[0]); for (i in 1 until size) { val v = selector(this[i]); if (v < minValue) { minValue = v; minIndex = i } }; return minIndex }
     private fun Any?.toIntSafe(): Int { val s = this?.toString() ?: ""; return try { if (s.contains(".")) s.toDouble().toInt() else s.toInt() } catch (e: Exception) { 0 } }
+
+    private fun getOccupancyInfo(item: GBusArrivalInfoItem, isTts: Boolean): String {
+        val routeTypeCd = item.routeTypeCd.toIntSafe()
+        val crowded1 = item.crowded1.toIntSafe()
+        val remainSeatCnt1 = item.remainSeatCnt1.toIntSafe()
+
+        // 빈자리수 제공 노선 유형 (11, 12, 14, 16, 17, 21, 22)
+        val hasSeatInfo = listOf(11, 12, 14, 16, 17, 21, 22).contains(routeTypeCd) && remainSeatCnt1 >= 0
+        // 혼잡도 제공 노선 유형 (13, 15, 23)
+        val hasCrowdInfo = listOf(13, 15, 23).contains(routeTypeCd) && crowded1 in 1..4
+
+        val crowdText = when (crowded1) {
+            1 -> "'여유'"
+            2 -> "'보통'"
+            3 -> "'혼잡'"
+            4 -> "'매우혼잡'"
+            else -> ""
+        }
+
+        return if (isTts) {
+            when {
+                hasSeatInfo && hasCrowdInfo -> " 차내 빈자리수는 ${remainSeatCnt1}개, 차내 혼잡도는 ${crowdText}입니다."
+                hasSeatInfo -> " 차내 빈자리수는 ${remainSeatCnt1}개입니다."
+                hasCrowdInfo -> " 차내 혼잡도는 ${crowdText}입니다."
+                else -> ""
+            }
+        } else {
+            when {
+                hasSeatInfo && hasCrowdInfo -> "차내 빈자리수는 ${remainSeatCnt1}개, 차내 혼잡도 : ${crowdText}"
+                hasSeatInfo -> "차내 빈자리수 : ${remainSeatCnt1}개"
+                hasCrowdInfo -> "차내 혼잡도 : ${crowdText}"
+                else -> ""
+            }
+        }
+    }
+
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() { tts?.stop(); tts?.shutdown(); fusedLocationClient.removeLocationUpdates(locationCallback); sensorManager.unregisterListener(this); serviceScope.cancel(); super.onDestroy() }
