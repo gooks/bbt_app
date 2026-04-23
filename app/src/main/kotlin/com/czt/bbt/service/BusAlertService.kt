@@ -61,6 +61,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     private var mode: Mode = Mode.IDLE
     private var activeRideAlert: RideAlert? = null
     private var rideJob: Job? = null
+    private var rideTimeoutTime: Long = 0L // 승차 자동 종료 예정 시간 추가
     private val activeArrivalJobs = mutableMapOf<Long, Job>()
     private val activeArrivalAlerts = mutableMapOf<Long, ArrivalAlert>()
     private val routeStationsCache = mutableMapOf<String, List<CachedRouteStation>>()
@@ -167,7 +168,7 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
     }
 
     private fun stopRideOnly() {
-        mode = Mode.IDLE; activeRideAlert = null; lastAlertStops = -1; notificationManager.cancel(NOTIFICATION_ID)
+        mode = Mode.IDLE; activeRideAlert = null; lastAlertStops = -1; rideTimeoutTime = 0L; notificationManager.cancel(NOTIFICATION_ID)
         serviceScope.launch {
             val histories = repository.getAllRideHistories().first()
             val last = histories.maxByOrNull { it.boardingTime }
@@ -175,6 +176,23 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
         }
         getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", -1L).commit()
         notifyWidgetUpdate(); if (activeArrivalJobs.isEmpty()) stopSelf()
+    }
+
+    private fun handleMisdetectedBoarding() {
+        speak("승차가 감지되지 않아 알림을 종료합니다.")
+        updateNotification("승차 오탐지로 인해 종료되었습니다.")
+        serviceScope.launch {
+            val histories = repository.getAllRideHistories().first()
+            val last = histories.maxByOrNull { it.boardingTime }
+            if (last != null && last.alightTime == null) {
+                repository.deleteRideHistory(last)
+            }
+            mode = Mode.IDLE; activeRideAlert = null; rideTimeoutTime = 0L
+            getSharedPreferences("bus_alert_prefs", Context.MODE_PRIVATE).edit().putLong("active_ride_id", -1L).commit()
+            notifyWidgetUpdate()
+            delay(5000)
+            if (activeArrivalJobs.isEmpty()) stopSelf()
+        }
     }
 
     private fun stopArrivalAll() {
@@ -544,6 +562,9 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
                     updateNotification("승차 확인! [GPS 추적]")
                 }
 
+                // 타임아웃 시간 설정: 승차 시간 + 예상 소요 시간 + 60분
+                rideTimeoutTime = boardingTime + (estMin * 60000L) + (60 * 60000L)
+
                 val dateNow = Date(boardingTime)
                 repository.insertRideHistory(RideHistory(
                     date = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(dateNow), 
@@ -610,6 +631,14 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
 
     private fun checkRideStatus() {
         if (!isBoardingDetected) return
+        
+        // 타임아웃 체크 (오탐지 자동 종료)
+        val now = System.currentTimeMillis()
+        if (rideTimeoutTime != 0L && now > rideTimeoutTime) {
+            handleMisdetectedBoarding()
+            return
+        }
+
         val alert = activeRideAlert ?: return; val loc = lastLocation ?: return; val stations = routeStationsCache[alert.busRouteId] ?: return
         val nearestIdx = stations.indexOfMinByOrNull { val res = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, it.y, it.x, res); res[0] } ?: -1
         if (nearestIdx != -1 && nearestIdx > lastStationIndex) lastStationIndex = nearestIdx
@@ -618,7 +647,10 @@ class BusAlertService : Service(), SensorEventListener, TextToSpeech.OnInitListe
             val distToDestRes = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, stations[destStationIndex].y, stations[destStationIndex].x, distToDestRes)
             val distToDestKm = distToDestRes[0] / 1000.0
             if (distToDestRes[0] < 150) { handleAlight(); return }
-            serviceScope.launch {
+
+            // 중복 작업 방지를 위해 기존 Job 취소 후 새로 시작
+            rideJob?.cancel()
+            rideJob = serviceScope.launch {
                 try {
                     // 1. 하이브리드 예상 시간 계산 (평균 35~40km/h 가정)
                     var estimatedTotalMin = ((distToDestKm * 1.6) + (stopsRemaining * 0.4)).toInt().coerceAtLeast(1)

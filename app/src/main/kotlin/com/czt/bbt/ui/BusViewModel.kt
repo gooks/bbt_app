@@ -112,6 +112,19 @@ class BusViewModel @Inject constructor(
         }
         checkKakaoLoginStatus()
 
+        // 오래된(24시간 이상) 하차 미완료 이력 자동 정리
+        viewModelScope.launch {
+            try {
+                val allHistories = repository.getAllRideHistoriesSorted()
+                val now = System.currentTimeMillis()
+                val toDelete = allHistories.filter { it.alightTime == null && now - it.boardingTime > 24 * 60 * 60 * 1000L }.map { it.id }
+                if (toDelete.isNotEmpty()) {
+                    repository.deleteRideHistories(toDelete)
+                    repository.logSystem("CLEANUP", "${toDelete.size}건의 오래된 미종료 이력을 정리했습니다.")
+                }
+            } catch (e: Exception) { }
+        }
+
         viewModelScope.launch {
             BusAlertState.liveStatusFlow.collect { _arrivalLiveStatus.value = it }
         }
